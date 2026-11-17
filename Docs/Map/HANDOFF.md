@@ -31,4 +31,9 @@ Read this first, then `README.md`, `DesignPriorities.md` and `Tools/GeoPipeline/
 * Pending: full-area OSM *reference* layer (coastline, peaks, favela outlines). Roads and buildings for the full
   area are downloaded. When reference arrives: `clip_osm.py --aoi test_leblon_arpoador`, rebuild and re-import
   (fixes the Cantagalo / Pavao-Pavaozinho slopes), then `validate.py` / `reference_map.py --aoi full`.
-* Next: Phase 3, compressed road-graph proposal, protecting the hero beach.
+* Next (user request 2026-11-17): **beach blockout generator** for the hero beach, procedural from the
+  beachfront road centreline so it regenerates in the compressed map: sand (OSM natural=beach, or derived from
+  coastline + Delfim Moreira / Vieira Souto until the reference layer exists), calcadao strips at real widths,
+  ciclovia, kiosks, Postos 7-12 at real positions, palm rows, Jardim de Alah mouth. Flat blockout materials only;
+  the black-and-white wave paving (different per Leblon / Ipanema / Copacabana) is a later material/decal pass.
+* Then: Phase 3, compressed road-graph proposal, protecting the hero beach.
