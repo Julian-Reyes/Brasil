@@ -1,0 +1,93 @@
+{
+  "_doc": "Single source of truth for the Rio geographic pipeline. See Docs/Map/CoordinateSystem.md.",
+
+  "crs": {
+    "geographic": "EPSG:4674",
+    "geographic_note": "SIRGAS 2000 geographic. OSM/WGS84 (EPSG:4326) inputs differ from SIRGAS 2000 by < 1 m and are transformed through pyproj.",
+    "projected": "EPSG:31983",
+    "projected_note": "SIRGAS 2000 / UTM zone 23S. Metric, official Brazilian CRS, used by Rio de Janeiro municipal data (IPP / Data.Rio).",
+    "vertical": "EGM2008 orthometric height (metres above mean sea level), as delivered by Copernicus DEM"
+  },
+
+  "unreal": {
+    "_doc": "SOURCE-scale (1:1) world frame. The compressed playable map uses its own frame defined by the compression graph, NOT this one.",
+    "origin_easting": 684500.0,
+    "origin_northing": 7461000.0,
+    "origin_height": 0.0,
+    "axis_mapping": "UE +X = East, UE +Y = South (-North), UE +Z = Up. Matches the GeoReferencing plugin's default ENU-to-Unreal convention.",
+    "units": "centimetres"
+  },
+
+  "aois": {
+    "full": {
+      "description": "Full target region: Centro/Gamboa/Lapa/Santa Teresa, Sao Cristovao/Maracana, Flamengo/Botafogo/Urca, Copacabana/Leme, Ipanema/Leblon, Lagoa, Corcovado, Vidigal.",
+      "bbox_lonlat": [-43.252, -23.004, -43.148, -22.884]
+    },
+    "test_leblon_vidigal": {
+      "description": "Phase 4 test: west Leblon, start of Av. Niemeyer, entrance to Vidigal and the lower part of Av. Pres. Joao Goulart.",
+      "bbox_utm": [680000.0, 7455500.0, 682000.0, 7457500.0],
+      "tile_size_m": 500.0,
+      "terrain_grid_m": 2.0
+    }
+  },
+
+  "dem": {
+    "source": "copernicus_glo30",
+    "url_template": "https://copernicus-dem-30m.s3.amazonaws.com/{name}/{name}.tif",
+    "name_template": "Copernicus_DSM_COG_10_{ns}{lat:02d}_00_{ew}{lon:03d}_00_DEM",
+    "license": "Copernicus DEM GLO-30 licence (free, worldwide, incl. commercial, attribution required)",
+    "attribution": "Produced using Copernicus WorldDEM-30 (c) DLR e.V. 2010-2014 and (c) Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved.",
+    "processed_resolution_m": 10.0
+  },
+
+  "osm": {
+    "license": "ODbL 1.0",
+    "attribution": "(c) OpenStreetMap contributors, available under the Open Database License (ODbL).",
+    "drivable_highway": ["motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link",
+                          "secondary", "secondary_link", "tertiary", "tertiary_link", "residential",
+                          "unclassified", "living_street", "service"],
+    "pedestrian_highway": ["pedestrian", "footway", "steps", "path", "track", "cycleway"]
+  },
+
+  "roads": {
+    "_doc": "Realistic widths in metres (carriageway, kerb to kerb). OSM 'width' wins, then 'lanes' x lane_width + extra, then class default.",
+    "lane_width_m": 3.3,
+    "lane_extra_m": 1.0,
+    "class_width_m": {
+      "motorway": 22.0, "motorway_link": 7.0, "trunk": 18.0, "trunk_link": 7.0,
+      "primary": 14.0, "primary_link": 7.0, "secondary": 11.0, "secondary_link": 6.5,
+      "tertiary": 9.0, "tertiary_link": 6.0, "residential": 7.0, "unclassified": 6.5,
+      "living_street": 5.0, "service": 4.5,
+      "pedestrian": 6.0, "footway": 2.0, "steps": 2.0, "path": 1.8, "track": 3.0, "cycleway": 2.5
+    },
+    "min_width_m": 1.5,
+    "max_width_m": 30.0,
+    "shoulder_m": 1.5,
+    "blend_m": 10.0,
+    "profile_smoothing_m": 25.0,
+    "max_grade": {"_doc": "rise/run; null = follow terrain. Vidigal/Santa Teresa streets genuinely reach ~25-30%.",
+                  "major": 0.12, "minor": 0.30, "path": null, "steps": null},
+    "surface_offset_m": 0.06,
+    "terrain_sink_m": 0.10
+  },
+
+  "buildings": {
+    "_doc": "Placeholder heights. OSM height / building:levels win; otherwise deterministic defaults keyed on OSM id.",
+    "storey_m": 3.0,
+    "informal_storey_m": 2.8,
+    "informal_max_footprint_m2": 150.0,
+    "informal_min_slope": 0.15,
+    "formal_large_footprint_m2": 350.0,
+    "formal_large_levels": [8, 13],
+    "formal_small_levels": [2, 4],
+    "informal_levels": [2, 4],
+    "foundation_sink_m": 0.5
+  },
+
+  "verification_landmarks": [
+    {"name": "Pao de Acucar summit", "lonlat": [-43.1566, -22.9486], "expected_m": 396, "tolerance_m": 60},
+    {"name": "Corcovado summit", "lonlat": [-43.2105, -22.9519], "expected_m": 710, "tolerance_m": 60},
+    {"name": "Copacabana beach (Av. Atlantica)", "lonlat": [-43.1820, -22.9711], "expected_m": 3, "tolerance_m": 15},
+    {"name": "Lagoa Rodrigo de Freitas water", "lonlat": [-43.2085, -22.9725], "expected_m": 1, "tolerance_m": 10}
+  ]
+}

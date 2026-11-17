@@ -1,0 +1,20 @@
+# Unreal generated
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+.vs/
+*.xcworkspace
+*.xcodeproj
+*.sln
+
+# Geographic pipeline: raw downloads and processed intermediates are
+# reproducible from Tools/GeoPipeline and too large for git.
+GeoData/raw/
+GeoData/processed/
+GeoData/exports/
+Tools/GeoPipeline/.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.claude/settings.local.json
