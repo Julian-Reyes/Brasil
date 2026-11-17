@@ -73,8 +73,20 @@ def main():
     # ---------------- terrain
     hs = [bld.building_height(r, bool(r["informal"]), bcfg) for _, r in buildings.iterrows()]
     buildings["height_m"], buildings["height_src"] = [h for h, _ in hs], [s for _, s in hs]
-    dsm, dsm_tf = ter.load_dsm_window(PROCESSED_DIR / "dem" / "full_10m.tif", bbox, margin=1000)
-    ground10, _ = ter.ground_from_dsm(dsm, dsm_tf, buildings.geometry, buildings["height_m"])
+    margin = 1000.0
+    dsm, dsm_tf = ter.load_dsm_window(PROCESSED_DIR / "dem" / "full_10m.tif", bbox, margin=margin)
+    # The ground model needs buildings for the whole DEM window, not just the AOI; otherwise rooftops just
+    # outside the AOI leak in through the blur and the lowland opening. Prefer the full-region extract.
+    full_path = RAW_DIR / "osm" / "full" / "buildings.gpkg"
+    if args.aoi != "full" and full_path.exists():
+        ctx = gpd.read_file(full_path, bbox=(W - margin, S - margin, E + margin, N + margin))
+        ctx["informal"] = ctx.geometry.centroid.within(favela_union) if favela_union is not None else False
+        ctx_h = [bld.building_height(r, bool(r["informal"]), bcfg)[0] for _, r in ctx.iterrows()]
+        log(f"ground model uses {len(ctx)} full-region buildings within the DEM window")
+        ground10, _ = ter.ground_from_dsm(dsm, dsm_tf, ctx.geometry, ctx_h)
+    else:
+        log("WARNING: full-region buildings not available; ground model limited to AOI buildings")
+        ground10, _ = ter.ground_from_dsm(dsm, dsm_tf, buildings.geometry, buildings["height_m"])
     ground = ter.resample_to_grid(ground10, dsm_tf, bbox, step)
     dsm_grid = ter.resample_to_grid(dsm, dsm_tf, bbox, step)
     log(f"terrain grid {ground.shape[1]}x{ground.shape[0]} @ {step} m; "
@@ -162,7 +174,6 @@ def main():
     log(f"buildings placed: {placed}; carriageway conflicts: {conflicts}")
 
     # ---------------- write
-    write_mtl(out / "tiles" / "blockout.mtl", PALETTE)
     write_mtl(out / "blockout.mtl", PALETTE)
     # One triangle per material: imported once with materials into /Game/Rio/Materials/Blockout, so every
     # tile mesh (imported without materials) can share the same material assets.
@@ -173,7 +184,8 @@ def main():
     area_tag = f"RioArea:{args.aoi}"
     manifest = {"aoi": args.aoi, "crs": PROJECTED_CRS, "unreal_origin": CONFIG["unreal"], "tags": [GEN_TAG, area_tag],
                 "asset_root": f"/Game/Rio/Generated/{aoi_cfg.get('unreal_folder', 'Test_LeblonVidigal')}",
-                "outliner_root": f"Generated/{aoi_cfg.get('unreal_folder', 'Test_LeblonVidigal')}", "actors": []}
+                "outliner_root": f"Generated/{aoi_cfg.get('unreal_folder', 'Test_LeblonVidigal')}",
+                "always_loaded": bool(aoi_cfg.get("always_loaded", False)), "actors": []}
     for (i, j), kinds in tiles.items():
         pe, pn = W + i * tile_m, S + j * tile_m
         x, y, z = utm_to_ue(pe, pn, 0.0)
@@ -181,16 +193,17 @@ def main():
             if not mb.triangle_count:
                 continue
             name = f"SM_T{i}{j}_{kind}"
-            mb.write_obj(out / "tiles" / f"{name}.obj", "blockout.mtl")
+            mb.write_obj(out / "tiles" / f"{name}.obj", None)
             manifest["actors"].append({
                 "asset": name, "kind": kind, "obj": str(out / "tiles" / f"{name}.obj"),
                 "label": f"GEN_T{i}{j}_{kind}", "location_cm": [x, y, z], "tile": [i, j],
                 "pivot_utm": [pe, pn], "materials": sorted(mb.parts), "triangles": mb.triangle_count,
                 "collision": "complex_as_simple"})
     sea = MeshBuilder()
-    sea.add("M_Sea", [(0, 0, 0), (E - W, 0, 0), (E - W, N - S, 0), (0, N - S, 0)], [(0, 1, 2), (0, 2, 3)],
-            [(0, 0, 1)] * 4)
-    sea.write_obj(out / "SM_Sea.obj", "blockout.mtl")
+    pad = 3000.0  # extend the sea beyond the AOI so test levels do not end in a void
+    sea.add("M_Sea", [(-pad, -pad, 0), (E - W + pad, -pad, 0), (E - W + pad, N - S + pad, 0), (-pad, N - S + pad, 0)],
+            [(0, 1, 2), (0, 2, 3)], [(0, 0, 1)] * 4)
+    sea.write_obj(out / "SM_Sea.obj", None)
     x, y, z = utm_to_ue(W, S, 0.0)
     manifest["actors"].append({"asset": "SM_Sea", "kind": "Water", "obj": str(out / "SM_Sea.obj"),
                                "label": "GEN_Sea", "location_cm": [x, y, z], "materials": ["M_Sea"],

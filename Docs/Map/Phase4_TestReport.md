@@ -21,7 +21,8 @@ AOI `test_leblon_vidigal`: UTM E 680000-682000, N 7455500-7457500 (2 x 2 km, 16 
 | OBJ axis/unit calibration | file (x, y, z) -> UE (x, -y, z), 1:1 cm. Verified by importing a calibration mesh |
 | Tile bounds in UE | 50,000 x 50,000 cm, north = -Y as designed |
 | Road surface vs terrain (pipeline, all centreline samples) | 99.2% within +/-0.5 m; median +0.16 m (intended road lift); extremes -1.9 / +2.2 m at corridor overlaps |
-| Road height in engine (10 line traces on 5 named roads) | within 1.5-4.4 cm of prediction |
+| Road height in engine (10 line traces on 5 named roads) | within 1.6-4.1 cm of prediction (re-verified after re-import via editor Python) |
+| World Partition loading | Generated actors are non-spatially-loaded (`always_loaded`), so the level never opens empty |
 | Collision | Complex-as-simple on terrain, roads and buildings; auto-generated convex hulls removed |
 | Third Person character (PIE) | Spawns at the Vidigal entrance and stands on Av. Niemeyer at z = 32.81 m (road 31.89 m + capsule), stable over 3 s. See `screenshots/test_04_pie_third_person.png` |
 | Top-down comparison | `screenshots/test_02_top_down.png` matches `reference/test_leblon_vidigal.png` (Leblon grid, Niemeyer curve, Vidigal, coastline) |
@@ -30,14 +31,14 @@ AOI `test_leblon_vidigal`: UTM E 680000-682000, N 7455500-7457500 (2 x 2 km, 16 
 
 ## Known issues to address next
 
-1. **Leblon ground is too high** (Av. Ataulfo de Paiva about 10-11 m vs about 3-4 m real; beachfront 3.6-7.6 m).
-   Cause: building correction only had buildings inside this AOI. Fix: use full-AOI buildings for the ground
-   model (data is downloading) and re-run.
-2. **Some drivable grades exceed the limit:** a 26 m unnamed service lane reaches 55%, and Av. Pres. Joao
-   Goulart 38% over 10 m (limit 30%), where junction heights are fixed by a higher tier. Real Vidigal streets are
+1. **Leblon ground is still slightly high.** Fixed from about 10-11 m to 6.3-6.6 m on Av. Ataulfo de Paiva
+   (real about 3-4 m); the beachfront is 2.5-4.7 m. Remaining error is the DSM's resolution; see DataSources.md
+   (upgrade path: Rio municipal DTM).
+2. **Some drivable grades slightly exceed the 30% limit:** Av. Pres. Joao Goulart and one service lane reach
+   about 38% over 10 m, where junction heights are fixed by a higher tier. Real Vidigal streets are
    very steep; check against ground truth before tightening.
 3. Steps are modelled as ramps (walkable). Real stair geometry is a later art pass.
-4. The test area is cut at its AOI edge (visible cliff walls and void beyond). Expected for a test.
+4. The test area is cut at its AOI edge (visible cliff walls). The sea plane extends 3 km beyond it.
 5. Dois Irmaos summits are low (DSM limitation, see `DataSources.md`).
 
 ## Screenshots

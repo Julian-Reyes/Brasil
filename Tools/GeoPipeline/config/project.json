@@ -27,7 +27,9 @@
       "description": "Phase 4 test: west Leblon, start of Av. Niemeyer, entrance to Vidigal and the lower part of Av. Pres. Joao Goulart.",
       "bbox_utm": [680000.0, 7455500.0, 682000.0, 7457500.0],
       "tile_size_m": 500.0,
-      "terrain_grid_m": 2.0
+      "terrain_grid_m": 2.0,
+      "unreal_folder": "Test_LeblonVidigal",
+      "always_loaded": true
     }
   },
 
@@ -67,6 +69,7 @@
     "profile_smoothing_m": 25.0,
     "max_grade": {"_doc": "rise/run; null = follow terrain. Vidigal/Santa Teresa streets genuinely reach ~25-30%.",
                   "major": 0.12, "minor": 0.30, "path": null, "steps": null},
+    "min_height_m": 1.0,
     "surface_offset_m": 0.06,
     "terrain_sink_m": 0.10
   },

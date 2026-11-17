@@ -41,13 +41,13 @@ def load_dsm_window(dem_path, bounds, margin):
 
 
 def ground_from_dsm(dsm, transform, footprints, heights, gain=1.2, blur_m=15.0,
-                    lowland_max_m=25.0, lowland_max_slope=0.10):
+                    lowland_max_m=15.0):
     """Copernicus GLO-30 is a surface model. Remove the built-up surface in two passes:
 
     1. Subtract the mapped building volume: mean building height per DEM cell (rasterised at 1/5 of the
        cell size), blurred to the radar's effective resolution. Slope-independent, so hillside
        neighbourhoods keep their shape. `gain` > 1 compensates for the blur spreading rooftops into streets.
-    2. On genuinely flat lowland only (Leblon/Ipanema plain), take the minimum with a 150 m morphological
+    2. On the coastal lowland only (Leblon/Ipanema plain), take the minimum with a 150 m morphological
        opening to remove the residual roof signal. Never applied on slopes, where it would cut terraces.
 
     Sea (DSM <= 0.05, connected to the raster edge) becomes a gently sloping seabed.
@@ -62,11 +62,9 @@ def ground_from_dsm(dsm, transform, footprints, heights, gain=1.2, blur_m=15.0,
 
     size = max(3, int(round(150.0 / res)) | 1)
     opened = ndimage.gaussian_filter(ndimage.grey_opening(ground, size=(size, size)), sigma=20.0 / res)
-    smooth = ndimage.gaussian_filter(ground, 30.0 / res)
-    gy, gx = np.gradient(smooth, res)
-    slope = np.hypot(gx, gy)
-    w_low = (np.clip((lowland_max_slope - slope) / (0.5 * lowland_max_slope), 0, 1)
-             * np.clip((lowland_max_m - smooth) / 5.0, 0, 1))
+    # Lowland = where the roof-free (opened) surface is low. A slope test does not work here: residual rooftop
+    # bumps make the dense Leblon/Ipanema plain look sloped. Hills keep a high opened surface, so are untouched.
+    w_low = np.clip((lowland_max_m - opened) / 5.0, 0, 1)
     w_low = ndimage.gaussian_filter(w_low, 20.0 / res)
     ground = ground * (1 - w_low) + np.minimum(ground, opened) * w_low
 

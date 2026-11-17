@@ -44,16 +44,23 @@ AOIs are defined in `config/project.json` (`full`, `test_leblon_vidigal`). Add n
 
 ## Unreal import
 
-Unreal Python remote execution is not enabled (see `Docs/Map/README.md`), so the import runs through
-unreal-mcp's sandboxed `ProgrammaticToolset.execute_tool_script`. The script reads the manifest that
-`build_area.py` mirrors to `Saved/RioPipeline/<aoi>_manifest.json`. Send the contents of
-`unreal/mcp_import_area.py` with a `PARAMS` line prepended:
+Primary path: full editor Python over PythonScriptPlugin **Remote Execution** (Project Settings > Plugins >
+Python > Enable Remote Execution, bind address 127.0.0.1). `unreal/ue_remote.py` wraps the engine's
+`remote_execution.py`, with a macOS fix: the editor's discovery socket is bound to 127.0.0.1, which never
+receives multicast on BSD stacks, so discovery is also sent unicast. Open the target level, then run:
 
-```python
-PARAMS = {"aoi": "test_leblon_vidigal", "phase": "clear"}                        # in each level using the area
-PARAMS = {"aoi": "test_leblon_vidigal", "phase": "import", "start": 0, "count": 15}  # repeat until all imported
-PARAMS = {"aoi": "test_leblon_vidigal", "phase": "place"}                         # in the target level
+```sh
+.venv/bin/python unreal/ue_remote.py unreal/import_area.py '{"aoi": "test_leblon_vidigal"}'
 ```
+
+`import_area.py` loads (World Partition) and deletes the area's tagged actors, re-imports every mesh in place,
+binds the shared blockout materials, sets per-triangle collision, re-spawns the actors and saves. It takes about
+2.5 minutes for the 46-mesh test area. AOIs with `"always_loaded": true` place non-spatially-loaded actors, so
+small test levels never open empty.
+
+Fallback without Remote Execution: `unreal/mcp_import_area.py` through unreal-mcp's sandboxed
+`execute_tool_script` (phases `clear` / `import` / `place`). Caveat: it only sees *loaded* actors, so load the
+area in the World Partition editor first, or `place` will duplicate actors.
 
 **Regeneration safety.** Generated assets live only under `/Game/Rio/Generated/<Area>/` and are overwritten on
 re-import. Generated actors carry the tags `RioGenerated` and `RioArea:<aoi>` and live in the outliner folder

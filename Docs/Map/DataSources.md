@@ -16,7 +16,8 @@
 
 ## Coverage found (validation reports in `validation/`)
 
-* **Test area:** 4,179 buildings, 92% with an OSM `height` tag; 1,214 road edges including 334 staircase
+* **Test area:** 4,179 buildings, 92% with an OSM `height` tag. These are per-part heights (towers and their
+  3-5 m podiums are separate polygons), apparently from a municipal 3D import, so massing is realistic; 1,214 road edges including 334 staircase
   and 204 footway segments (Vidigal's becos are well mapped). Favela areas are mapped as
   `landuse=residential + residential=favela` (Vidigal, Chacara do Ceu, Rocinha).
 * Tunnels (Zuzu Angel / Acustico) are tagged and excluded from surface geometry.
@@ -24,10 +25,10 @@
 ## Known limitations
 
 1. **Copernicus is a surface model (DSM), not bare ground.** It includes rooftops and tree canopy.
-   Mitigation: subtract the mapped building volume, plus a lowland-only morphological opening.
-   Residual: the corrected ground in central Leblon still reads about 6-10 m where reality is 2-4 m,
-   because the test run only had buildings for its own AOI while the DEM window extends 1 km beyond it.
-   Re-run with full-AOI buildings to fix this. Forest canopy (about 10-20 m) remains on the hills.
+   Mitigation: subtract the mapped building volume (full-region buildings across the whole DEM window), then
+   on the coastal lowland (roof-free surface < 15 m) take the minimum with a 150 m morphological opening.
+   Residual: Av. Ataulfo de Paiva reads about 6.3-6.6 m (real about 3-4 m); the beachfront is about 2.5-4.7 m.
+   Forest canopy (about 10-20 m) remains on the hills. Rio municipal DTM data would remove both residuals.
 2. **Steep granite peaks are under-represented** at 30 m: Pao de Acucar reads 329 m against a surveyed 396 m,
    Corcovado 632 m against 710 m, Irmao Maior about 386-469 m against 539 m. Plan: a landmark-summit
    correction step that raises iconic peaks to surveyed heights with a smooth falloff.

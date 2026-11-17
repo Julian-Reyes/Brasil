@@ -40,10 +40,9 @@ Content/ThirdPerson/        original template, untouched
 
 * **unreal-mcp** covers asset/actor/property work, mesh import, PIE, viewport capture and line traces. It
   cannot run arbitrary editor Python, create Landscapes or run console commands.
-* **Unreal Python Remote Execution** (Project Settings > Plugins > Python > Enable Remote Execution, bound to
-  127.0.0.1) would allow full `unreal` API scripting from the pipeline, e.g. Landscape import from heightmaps and
-  Data Layer setup. Enabling it was blocked by this session's permission policy, so it was left OFF; enable it
-  only if you want that capability. Until then terrain is a tiled static mesh with per-triangle collision,
-  which is adequate for blockout.
+* **Unreal Python Remote Execution** is enabled (by the user; 127.0.0.1 only). The pipeline drives the editor
+  with full `unreal` API access through `Tools/GeoPipeline/unreal/ue_remote.py` (includes a macOS multicast
+  workaround). Terrain is still a tiled static mesh with per-triangle collision; Landscape import is now possible
+  and planned for the full map.
 * Machine: Apple M1, 16 GB RAM, about 13 GB free disk. Keep test areas small; the full-city export will need
   per-district streaming and should not be generated in one pass.

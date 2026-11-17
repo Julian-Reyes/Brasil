@@ -117,6 +117,8 @@ def solve_profiles(edges, nodes_xy, ground_fn, fixed_nodes, cfg, spacing=2.0, it
     g = np.zeros(nvar)
     for idx, (pts, _) in zip(ids, samples):
         g[idx] = ground_fn(pts[:, 0], pts[:, 1])
+    # Coastal roads must never follow the synthetic seabed below the shoreline.
+    g = np.maximum(g, cfg["min_height_m"])
 
     rows, cols, vals, rhs = [], [], [], []
 
