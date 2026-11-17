@@ -54,6 +54,7 @@ def main():
     tile_m, step = aoi_cfg["tile_size_m"], aoi_cfg["terrain_grid_m"]
     ntx, nty = int(round((E - W) / tile_m)), int(round((N - S) / tile_m))
     per_tile = int(round(tile_m / step))
+    assert abs(per_tile * step - tile_m) < 1e-6, f"terrain_grid_m {step} must divide tile_size_m {tile_m}"
     out = EXPORTS_DIR / args.aoi
     (out / "tiles").mkdir(parents=True, exist_ok=True)
     osm = RAW_DIR / "osm" / args.aoi
@@ -62,8 +63,12 @@ def main():
     buildings = gpd.read_file(osm / "buildings.gpkg")
     edges = gpd.read_file(osm / "roads.gpkg", layer="edges")
     nodes = gpd.read_file(osm / "roads.gpkg", layer="nodes")
-    ref = gpd.read_file(osm / "reference.gpkg", layer="polygons")
-    favelas = ref[ref.get("residential", "").astype(str).eq("favela")]
+    if (osm / "reference.gpkg").exists():
+        ref = gpd.read_file(osm / "reference.gpkg", layer="polygons")
+        favelas = ref[ref.get("residential", "").astype(str).eq("favela")]
+    else:
+        log("WARNING: no reference.gpkg; all buildings treated as formal (re-run after the reference fetch)")
+        favelas = gpd.GeoDataFrame(geometry=[], crs=PROJECTED_CRS)
     for g in (buildings, edges, nodes, favelas):
         assert g.crs.to_string() == PROJECTED_CRS
     favela_union = favelas.geometry.union_all() if len(favelas) else None

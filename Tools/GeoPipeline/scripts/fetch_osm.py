@@ -26,7 +26,9 @@ REFERENCE_TAGS = {
     "natural": ["coastline", "water", "beach", "peak", "cliff", "bare_rock", "wood"],
     "water": True,
     "place": ["suburb", "neighbourhood", "quarter"],
-    "boundary": ["administrative"],
+    # Only bairros (admin_level 10). Asking for boundary=administrative pulls the state and country relations,
+    # which makes Overpass assemble enormous geometries.
+    "admin_level": ["10"],
     "landuse": ["residential"],
     "tourism": ["attraction", "viewpoint"],
     "leisure": ["park", "stadium"],

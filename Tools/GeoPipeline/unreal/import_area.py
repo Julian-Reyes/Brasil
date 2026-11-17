@@ -55,10 +55,13 @@ for e in m["actors"]:
     mesh = unreal.load_asset(path)
     if mesh is None:
         raise RuntimeError("import failed: " + path)
-    mats = mesh.static_materials
-    for slot in mats:
-        slot.material_interface = unreal.load_asset(MATERIALS + str(slot.material_slot_name))
-    mesh.set_editor_property("static_materials", mats)
+    # set_material per index; editing a copy of static_materials does not stick
+    for i, slot in enumerate(mesh.static_materials):
+        mesh.set_material(i, unreal.load_asset(MATERIALS + str(slot.material_slot_name)))
+    # Nanite off: complex collision would come from the simplified Nanite fallback mesh, not the real surface
+    nanite = mesh.get_editor_property("nanite_settings")
+    nanite.enabled = False
+    mesh.set_editor_property("nanite_settings", nanite)
     mesh_sub.remove_collisions(mesh)
     body = mesh.get_editor_property("body_setup")
     body.set_editor_property("collision_trace_flag",

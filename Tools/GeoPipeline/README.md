@@ -42,6 +42,11 @@ AOIs are defined in `config/project.json` (`full`, `test_leblon_vidigal`). Add n
 5. **Verification.** `report.json`: road-surface-vs-terrain gaps, steepest drivable segments, building/road
    conflicts, height-source counts, triangle counts.
 
+## Clipping instead of downloading
+
+`scripts/clip_osm.py --aoi <aoi>` derives an AOI's raw OSM inputs from the already-downloaded `full` extract,
+so a new test area needs no Overpass request.
+
 ## Unreal import
 
 Primary path: full editor Python over PythonScriptPlugin **Remote Execution** (Project Settings > Plugins >

@@ -30,6 +30,14 @@
       "terrain_grid_m": 2.0,
       "unreal_folder": "Test_LeblonVidigal",
       "always_loaded": true
+    },
+    "test_leblon_arpoador": {
+      "description": "Hero area 1 test: the beach from Mirante do Leblon to Pedra do Arpoador, back to the south shore of Lagoa (Delfim Moreira, Vieira Souto, Ataulfo de Paiva / Visconde de Piraja, Jardim de Alah).",
+      "bbox_utm": [681500.0, 7456000.0, 686000.0, 7458500.0],
+      "tile_size_m": 500.0,
+      "terrain_grid_m": 2.5,
+      "unreal_folder": "Test_LeblonArpoador",
+      "always_loaded": true
     }
   },
 
