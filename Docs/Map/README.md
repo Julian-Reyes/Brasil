@@ -36,6 +36,9 @@ Content/ThirdPerson/        original template, untouched
 * [ ] Phase 3: reference map of the full area done (`reference/full.png`); compressed road-graph proposal next
 * [x] Phase 4: Leblon / Av. Niemeyer / Vidigal test, built, imported, verified and walkable (`Phase4_TestReport.md`)
 
+**Design priorities:** `DesignPriorities.md`. Hero area 1 is the Leblon to Arpoador beach, protected from
+compression and built first.
+
 ## Tooling constraints found
 
 * **unreal-mcp** covers asset/actor/property work, mesh import, PIE, viewport capture and line traces. It
