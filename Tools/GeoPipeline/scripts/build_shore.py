@@ -31,7 +31,8 @@ from rio_geo.common import CONFIG, EXPORTS_DIR, PROJECT_DIR, RAW_DIR, aoi_bbox_u
 from rio_geo.meshio import MeshBuilder, write_mtl  # noqa: E402
 
 # Only materials that are new here; M_Ciclovia, M_Kiosk(Roof) and M_Palm* come from the beach palette.
-PALETTE = {"M_WalkLane": (0.74, 0.71, 0.64), "M_Bench": (0.42, 0.28, 0.16),
+PALETTE = {"M_WalkLane": (0.74, 0.71, 0.64), "M_Bench": (0.42, 0.28, 0.16), "M_Restaurant": (0.80, 0.62, 0.42),
+           "M_Deck": (0.55, 0.40, 0.26), "M_RestaurantRoof": (0.30, 0.33, 0.36),
            "M_TreeTrunk": (0.36, 0.27, 0.18), "M_TreeCrown": (0.18, 0.40, 0.14)}
 PATH_CLASSES = {"footway", "path", "steps", "cycleway", "pedestrian", "track"}
 KIOSK_AMENITY = {"kiosk", "bar", "cafe", "fast_food", "restaurant", "ice_cream"}
@@ -78,9 +79,10 @@ def main():
     if fpath.exists():
         f = gpd.read_file(fpath, layer="features")
         for _, r in f.iterrows():
-            rec = {"x": r.geometry.x, "y": r.geometry.y, "name": None if str(r.get("name")) == "nan" else r.get("name"),
-                   "osm_id": f"{r['osm_type']}/{r['osm_id']}"}
             am, sh, nat = str(r.get("amenity")), str(r.get("shop")), str(r.get("natural"))
+            rec = {"x": r.geometry.x, "y": r.geometry.y, "name": None if str(r.get("name")) == "nan" else r.get("name"),
+                   "osm_id": f"{r['osm_type']}/{r['osm_id']}", "amenity": am,
+                   "in_building": bool(len(building_tree.query(r.geometry, predicate="within")))}
             if am == "bench":
                 features["bench"].append(rec)
             elif nat == "tree":
@@ -102,8 +104,8 @@ def main():
     tm = TiledMesh(bbox, aoi_cfg["tile_size_m"], MeshBuilder, clip=True)
     stats = shr.build(loop, prof, terrain, tm, cfg, features, road_tree, road_polys, building_tree, building_geoms)
     dbg = stats.pop("_debug")
-    log(f"lanes {stats['bike_lane_m']:.0f} m bike / {stats['walk_lane_m']:.0f} m walk; kiosks {stats['kiosks']} "
-        f"(+{stats['kiosks_skipped']} OSM skipped); benches {stats['benches']}; trees {stats['trees']}")
+    log(f"lanes {stats['bike_lane_m']:.0f} m bike / {stats['walk_lane_m']:.0f} m walk; kiosks {stats['kiosks']}; restaurants {stats['restaurants']['placed']} "
+        f"{stats['restaurants']['names']}; skipped {stats['venues_skipped']}; benches {stats['benches']}; trees {stats['trees']}")
 
     write_mtl(out / "shore.mtl", PALETTE)
     palette = MeshBuilder()
@@ -127,7 +129,7 @@ def main():
     saved.write_text(json.dumps(manifest, indent=2))
 
     report = {"aoi": args.aoi, "water": cfg["water_name"], "profile_measured_fraction": prof["measured"], **stats,
-              "kiosk_list": [{k: q.get(k) for k in ("name", "osm_id", "source", "side", "xyz", "skipped")} for q in dbg["kiosks"]],
+              "kiosk_list": [{k: q.get(k) for k in ("name", "kind", "amenity", "osm_id", "source", "side", "xyz", "skipped")} for q in dbg["kiosks"]],
               "triangles": {a["asset"]: a["triangles"] for a in actors},
               "triangles_total": sum(a["triangles"] for a in actors)}
     write_metadata(out / "shore_report.json", **report)
@@ -166,8 +168,14 @@ def preview(path, loop, prof, water, dbg, graph, building_geoms, bbox):
                 ax.fill(*ring.T, color=col, lw=0)
         pl = dbg["placed"]
         ax.plot(pl[:, 0], pl[:, 1], "o", color="#2f6b1f", ms=2.5 if detail else 0.8)
-        k = np.array([q["xyz"][:2] for q in dbg["kiosks"] if "xyz" in q]).reshape(-1, 2)
-        ax.plot(k[:, 0], k[:, 1], "s", color="#1f4d3d", ms=6 if detail else 3)
+        for kind, col, ms in (("kiosk", "#1f4d3d", 6), ("restaurant", "#e07b1a", 11)):
+            k = np.array([q["xyz"][:2] for q in dbg["kiosks"] if "xyz" in q and q.get("kind") == kind]).reshape(-1, 2)
+            ax.plot(k[:, 0], k[:, 1], "s", color=col, ms=ms if detail else ms / 2)
+            if detail and kind == "restaurant":
+                for q in dbg["kiosks"]:
+                    if "xyz" in q and q.get("kind") == kind and q.get("name"):
+                        ax.annotate(q["name"], q["xyz"][:2], xytext=(0, 9), textcoords="offset points",
+                                    ha="center", fontsize=7)
         ax.set_aspect("equal")
 
     ax = fig.add_subplot(gs[0, :])
@@ -176,7 +184,7 @@ def preview(path, loop, prof, water, dbg, graph, building_geoms, bbox):
     ax.set_xlim(w - 120, e + 120)
     ax.set_ylim(s - 120, n + 120)
     ax.set_title("Lagoa shore promenade, top down: grey = walking lane, red = bike lane, light green = green strip, "
-                 "dots = trees / palms / benches, squares = kiosks; lagoon light blue, roads dark", fontsize=9)
+                 "dots = trees / palms / benches, small squares = kiosks, orange = restaurants; lagoon light blue, roads dark", fontsize=9)
     for col, (cx, cy, title) in enumerate(((682780, 7458350, "West shore (Parque dos Patins)"),
                                            (683900, 7458650, "East shore (narrow strip under the hill)"))):
         ax = fig.add_subplot(gs[1, col])

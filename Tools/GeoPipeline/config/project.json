@@ -174,6 +174,7 @@
     "lane_lift_m": 0.10,
     "skirt_m": 0.4,
     "kiosk": {"size_m": [3.2, 3.2, 2.6], "roof_m": [4.6, 4.6, 0.25], "offset_from_lanes_m": 2.0, "fill_gap_m": 600.0},
+    "restaurant": {"building_m": [8.0, 6.0, 3.5], "deck_m": [8.0, 4.0, 0.4], "roof_m": [9.0, 7.5, 0.3]},
     "bench": {"size_m": [1.8, 0.45, 0.45], "spacing_m": 35.0, "offset_from_lane_m": 0.7},
     "vegetation": {"spacing_m": 11.0, "jitter_m": 2.5, "lane_gap_m": 1.0, "strip_max_m": 25.0, "min_strip_m": 3.0,
                    "two_rows_from_m": 10.0, "clear_m": 2.5, "palm_fraction": 0.2,

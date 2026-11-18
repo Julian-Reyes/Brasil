@@ -282,15 +282,21 @@ Runs after `build_area.py` (and after `build_beach.py` in the beach area). Kind 
 * **Trees**: 110 OSM trees (of 1,216 mapped around the lagoon; the rest are outside the shore band or blocked)
   + 367 procedural in the green strip between the bike lane and the road, one row, two rows where the strip is
   >= 10 m wide; 20% palms (104). Broadleaf = hex trunk + faceted icosahedron crown, 7-13 m.
-* **Kiosks**: 8 from OSM + 10 procedural (one per gap > 600 m), land side of the lanes or water side when the
-  land side has no room (10 are water side). Parque dos Patins gets a cluster of 4.
+* **Kiosks**: 4 from OSM (snack bars / kiosks) + 10 procedural (one per gap > 600 m between food venues), land
+  side of the lanes or water side when the land side has no room (7 are water side).
+* **Lakeside restaurants**: OSM `restaurant` / `bar` on the lake side of the ring road become an 8 x 6 m
+  building (`M_Restaurant`) with a 4 m raised deck facing the water (`M_Deck`) and a roof over the building and
+  part of the deck (`M_RestaurantRoof`). Placed: **Mediterraneo** and **Caipirinha e File** (Parque dos Patins).
+  Skipped: one unnamed restaurant on the north shore (no 10 m of room between the lanes and the road) and one
+  point inside a mapped shore building (left to that building).
 * Nothing is placed on a drivable road or inside a building (STRtree checks), and objects keep clear of each
   other.
 * The beach area (`test_leblon_arpoador`) contains the southern half of the lagoon: run `build_shore.py` there
   too; geometry outside the AOI is dropped (3.97 km of lanes, 10 kiosks, 115 benches, 402 trees).
 
 Needs once in Unreal: import `GeoData/exports/<aoi>/shore/SM_ShorePalette.obj` **with materials** into
-`/Game/Rio/Materials/Blockout/` (M_WalkLane, M_Bench, M_TreeTrunk, M_TreeCrown). The beach palette must be imported
+`/Game/Rio/Materials/Blockout/` (M_WalkLane, M_Bench, M_TreeTrunk, M_TreeCrown, M_Restaurant, M_Deck,
+M_RestaurantRoof). The beach palette must be imported
 too (M_Ciclovia, M_Kiosk, M_KioskRoof, M_Palm*).
 
 Order on the mini:
@@ -317,6 +323,17 @@ down-facing walk/bike faces, tree crowns and trunks all faces outward).
 * Tree/palm scale, density, and whether the faceted crowns read well from the road.
 * Water-side kiosks: are they believable or in the way?
 * Collision: trees, benches and kiosks have complex collision like everything else.
+
+### Decision for after the drive / walk test: restaurants across the ring road
+
+34 restaurants / bars around the lagoon are on the **far side of the ring road**, in the ground floors of the
+apartment blocks (Bar Lagoa, Mr. Lam, Gula Gula, Capricciosa, Jack Daniels Rock Bar, Stravaganze, ...). They are
+in `lagoa.gpkg` but not represented: their buildings exist, nothing marks the restaurant. Only about a third of
+the points fall exactly inside a mapped building (the rest sit on the sidewalk / entrance). Options:
+
+* markers only: snap each to its building, write name / type / storefront location to `manifest.json -> markers`
+  (like the Postos), for gameplay later (entrances, interiors, missions, ambient crowds);
+* markers + a simple awning on the building's road-facing side, so they read while driving.
 
 ### Known gaps
 

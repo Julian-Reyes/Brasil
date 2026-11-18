@@ -205,58 +205,90 @@ def build(loop, prof, terrain, tm, cfg, features, road_tree, road_polys, buildin
     def free(x, y, r):
         return all(np.hypot(x - a, y - b) > r + rr for a, b, rr in placed_xy)
 
-    # ---- kiosks: OSM first (land side of the lanes, else water side), then procedural fill in long gaps
-    kc = cfg["kiosk"]
+    # ---- food venues: kiosks and lakeside restaurants. OSM first (land side of the lanes, else water side), then
+    # procedural kiosks in long gaps. Restaurants = amenity restaurant / bar on the lake side of the ring road:
+    # a building with a raised deck facing the water. Points inside a mapped building are left to that building.
+    kc, rc = cfg["kiosk"], cfg["restaurant"]
     kiosks = []
-    r = kc["roof_m"][0] / 2
+    gap = kc["offset_from_lanes_m"]
 
-    def put_kiosk(i, rec):
-        """Try the land side of the lanes, then the water side. Returns True if placed."""
-        cands = []
-        if has_lanes[i]:
-            cands.append(bike_out[i] + kc["offset_from_lanes_m"] + r)
-            if inner[i] - kc["offset_from_lanes_m"] - r >= cfg["shore_clear_m"] + r * 0.5:
-                cands.append(inner[i] - kc["offset_from_lanes_m"] - r)
-        for o in cands:
-            x, y = loop.at(o)[i]
-            if o + r > limit[i] + cfg["obstacle_clear_m"] or blocked(x, y, r) or not free(x, y, r + 4.0):
-                continue
-            z = float(terrain.sample([x], [y])[0])
-            yaw = np.arctan2(loop.t[i, 1], loop.t[i, 0])
+    def venue_depth(kind):
+        return kc["roof_m"][1] if kind == "kiosk" else rc["building_m"][1] + rc["deck_m"][1]
+
+    def venue_radius(kind):
+        return kc["roof_m"][0] / 2 if kind == "kiosk" else 0.5 * np.hypot(rc["roof_m"][0], venue_depth(kind))
+
+    def draw_venue(kind, i, o, x, y, z):
+        yaw = np.arctan2(loop.t[i, 1], loop.t[i, 0])
+        if kind == "kiosk":
             v, t = box((x, y), yaw, kc["size_m"][:2], z - 0.3, z + kc["size_m"][2])
             tm.add_object("M_Kiosk", v, t, (x, y))
             v, t = box((x, y), yaw, kc["roof_m"][:2], z + kc["size_m"][2], z + kc["size_m"][2] + kc["roof_m"][2])
             tm.add_object("M_KioskRoof", v, t, (x, y))
+            return
+        D = venue_depth(kind)
+        bw, bd, bh = rc["building_m"]
+        dw, dd, dh = rc["deck_m"]
+        rw, rd, rt = rc["roof_m"]
+        # the deck takes the water-facing part of the footprint, the building the land-facing part
+        deck_c = loop.at(o - D / 2 + dd / 2)[i]
+        bld_c = loop.at(o + D / 2 - bd / 2)[i]
+        roof_c = loop.at(o + D / 2 - rd / 2)[i]  # roof covers the building and part of the deck (pergola)
+        for mat, (v, t) in (("M_Restaurant", box(bld_c, yaw, (bw, bd), z - 0.3, z + bh)),
+                            ("M_Deck", box(deck_c, yaw, (dw, dd), z - 0.3, z + dh)),
+                            ("M_RestaurantRoof", box(roof_c, yaw, (rw, rd), z + bh, z + bh + rt))):
+            tm.add_object(mat, v, t, (x, y))
+
+    def put_venue(kind, i, rec):
+        """Try the land side of the lanes, then the water side. Returns True if placed."""
+        D, r = venue_depth(kind), venue_radius(kind)
+        cands = []
+        if has_lanes[i]:
+            cands.append(bike_out[i] + gap + D / 2)
+            if inner[i] - gap - D >= cfg["shore_clear_m"]:
+                cands.append(inner[i] - gap - D / 2)
+        for o in cands:
+            x, y = loop.at(o)[i]
+            if o + D / 2 > limit[i] + cfg["obstacle_clear_m"] or blocked(x, y, r) or not free(x, y, r + 4.0):
+                continue
+            z = float(terrain.sample([x], [y])[0])
+            draw_venue(kind, i, o, x, y, z)
             placed_xy.append((x, y, r))
-            kiosks.append({**rec, "i": i, "side": "land" if o > inner[i] else "water",
+            kiosks.append({**rec, "kind": kind, "i": i, "side": "land" if o > inner[i] else "water",
                            "xyz": [round(float(x), 2), round(float(y), 2), round(z, 2)]})
             return True
         return False
 
     for f in features.get("kiosk", []):
+        kind = "restaurant" if f.get("amenity") in ("restaurant", "bar") else "kiosk"
         i, off = loop.project(f["x"], f["y"])
         if not (-2.0 <= off <= limit[i] + 10.0):
-            continue  # across the ring road (restaurants in the buildings) or out in the water
-        if not put_kiosk(i, {**f, "source": "osm"}):
-            kiosks.append({**f, "source": "osm", "skipped": "no room / duplicate"})
-    # procedural fill: walk the loop, add one in the middle of any gap longer than fill_gap_m
+            continue  # across the ring road (in the apartment blocks) or out in the water
+        if f.get("in_building"):
+            kiosks.append({**f, "kind": kind, "source": "osm", "skipped": "inside a mapped building"})
+            continue
+        if not put_venue(kind, i, {**f, "source": "osm"}):
+            kiosks.append({**f, "kind": kind, "source": "osm", "skipped": "no room / duplicate"})
+    # procedural kiosks: one in the middle of any gap (between placed venues of either kind) over fill_gap_m
     placed_s = sorted(loop.s[k["i"]] for k in kiosks if "xyz" in k)
-    if placed_s:
-        gaps = list(zip(placed_s, placed_s[1:] + [placed_s[0] + loop.length]))
-    else:
-        gaps = [(0.0, loop.length)]
+    gaps = list(zip(placed_s, placed_s[1:] + [placed_s[0] + loop.length])) if placed_s else [(0.0, loop.length)]
     for a, b in gaps:
         n_add = int((b - a) // kc["fill_gap_m"])
         for k in range(1, n_add + 1):
             target = a + (b - a) * k / (n_add + 1)
             for shift in (0, 40, -40, 80, -80, 120, -120):  # look nearby for room
                 i = int(((target + shift) % loop.length) / loop.length * len(u)) % len(u)
-                if put_kiosk(i, {"name": None, "osm_id": None, "source": "procedural"}):
+                if put_venue("kiosk", i, {"name": None, "osm_id": None, "source": "procedural"}):
                     break
-    stats["kiosks"] = {"osm": sum("xyz" in k and k["source"] == "osm" for k in kiosks),
-                       "procedural": sum("xyz" in k and k["source"] == "procedural" for k in kiosks),
-                       "water_side": sum(k.get("side") == "water" for k in kiosks)}
-    stats["kiosks_skipped"] = sum("skipped" in k for k in kiosks)
+    placed = [k for k in kiosks if "xyz" in k]
+    stats["kiosks"] = {"osm": sum(k["kind"] == "kiosk" and k["source"] == "osm" for k in placed),
+                       "procedural": sum(k["source"] == "procedural" for k in placed),
+                       "water_side": sum(k["kind"] == "kiosk" and k["side"] == "water" for k in placed)}
+    stats["restaurants"] = {"placed": sum(k["kind"] == "restaurant" for k in placed),
+                            "water_side": sum(k["kind"] == "restaurant" and k["side"] == "water" for k in placed),
+                            "names": [k.get("name") for k in placed if k["kind"] == "restaurant"]}
+    stats["venues_skipped"] = {"inside_building": sum(k.get("skipped") == "inside a mapped building" for k in kiosks),
+                               "no_room_or_duplicate": sum(k.get("skipped") == "no room / duplicate" for k in kiosks)}
 
     # ---- benches: OSM where mapped (snapped to the water side of the walking lane), else every spacing_m
     bc = cfg["bench"]
