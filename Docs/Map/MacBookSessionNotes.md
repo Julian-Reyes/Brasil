@@ -245,6 +245,82 @@ Preview: `Docs/Map/screenshots/lagoa_preview.png`.
   outside the cap zone.
 * Canal (1.0 m) meets the beach-mouth water strip (0.02 m) with a 1 m step at the calcadao. A weir there is
   plausible, but check how it looks.
-* Lagoa shore details are only what OSM gives as roads: the "Ciclovia da Lagoa" is mapped as a 2 m footway
-  ribbon. No Lagoa kiosks, Parque dos Patins furniture or rowing stadium detail yet.
+* ~~Lagoa shore details~~: done in Session 3 (rowing stadium / clubs still not modelled).
 * Water has no collision: the player falls through to the bed. Fine for a blockout.
+
+---
+
+# Session 3 (2026-11-18, MacBook): Lagoa shore promenade + debug guide
+
+Branch `macbook/lagoa`. **Not seen in the editor.**
+
+## Road-height debugging: see `Docs/Map/UnrealDebugGuide.md`
+
+Problems 1 (SE corner of the Lagoa) and 2 (Cantagalo grades): exact UTM / UE coordinates, what to look for,
+fix options and experiment numbers. New untested editor helpers: `unreal/goto.py` (fly the viewport to a spot)
+and `unreal/trace_heights.py` (line-trace heights to compare with the pipeline). New switches in
+`config/project.json -> roads`, defaults unchanged: `max_slope_weight` (10000) and `clamp_min_height` (false).
+On the laptop, option A (`max_slope_weight: 100` + `clamp_min_height: true`) took the Cantagalo junction from
+50.9 to 14.3 m and Sa Ferreira from 172% to 45% with almost no extra noise. Recommended, pending a look in Unreal.
+
+## Shore promenade generator (new): `scripts/build_shore.py`, `rio_geo/shore.py`
+
+Runs after `build_area.py` (and after `build_beach.py` in the beach area). Kind `Shore`, one mesh per tile.
+
+* Loop = the lagoon's outer shoreline (7,343 m), islands excluded. Every 5 m a ray to the land measures the OSM
+  promenade path ("Ciclovia da Lagoa..." footways, median 9 m from the water), the first drivable road edge
+  (median 17 m) and the first building. Saved as `shore/shore_profile.json` with normalised stations, like the
+  beach, so the compressed map can reuse it.
+* **Walking lane** (2.5 m, water side, new material `M_WalkLane`) and **bike lane** (2.5 m, `M_Ciclovia`),
+  centred on the OSM path. Where the road / a building is close they slide towards the water (min 0.8 m from it),
+  then narrow (walk to 1.2 m, bike to 2.0 m), only then drop the walking lane. Result: 6.94 km bike /
+  6.82 km walk of the 7.34 km loop. Three short gaps where a road or bridge touches the shore (stations about
+  650-800, 3,550 and 6,100 m in the preview's profile panel): the real path uses the sidewalk there.
+  Lanes sit on the highest terrain under them + 0.10 m, with skirts.
+* **Benches**: 13 from OSM (of 26 mapped) + 170 procedural every 35 m, on the water side of the walking lane,
+  facing the water (backrest on the land side).
+* **Trees**: 110 OSM trees (of 1,216 mapped around the lagoon; the rest are outside the shore band or blocked)
+  + 367 procedural in the green strip between the bike lane and the road, one row, two rows where the strip is
+  >= 10 m wide; 20% palms (104). Broadleaf = hex trunk + faceted icosahedron crown, 7-13 m.
+* **Kiosks**: 8 from OSM + 10 procedural (one per gap > 600 m), land side of the lanes or water side when the
+  land side has no room (10 are water side). Parque dos Patins gets a cluster of 4.
+* Nothing is placed on a drivable road or inside a building (STRtree checks), and objects keep clear of each
+  other.
+* The beach area (`test_leblon_arpoador`) contains the southern half of the lagoon: run `build_shore.py` there
+  too; geometry outside the AOI is dropped (3.97 km of lanes, 10 kiosks, 115 benches, 402 trees).
+
+Needs once in Unreal: import `GeoData/exports/<aoi>/shore/SM_ShorePalette.obj` **with materials** into
+`/Game/Rio/Materials/Blockout/` (M_WalkLane, M_Bench, M_TreeTrunk, M_TreeCrown). The beach palette must be imported
+too (M_Ciclovia, M_Kiosk, M_KioskRoof, M_Palm*).
+
+Order on the mini:
+
+```sh
+.venv/bin/python scripts/fetch_beach.py --aoi test_lagoa --set lagoa        # or copy lagoa.gpkg from the laptop
+cp ../../GeoData/raw/osm/test_lagoa/lagoa.gpkg ../../GeoData/raw/osm/test_leblon_arpoador/
+.venv/bin/python scripts/build_area.py  --aoi test_lagoa
+.venv/bin/python scripts/build_shore.py --aoi test_lagoa
+.venv/bin/python scripts/build_area.py  --aoi test_leblon_arpoador
+.venv/bin/python scripts/build_beach.py --aoi test_leblon_arpoador
+.venv/bin/python scripts/build_shore.py --aoi test_leblon_arpoador
+# then import_area.py for both
+```
+
+Checks done on the laptop: preview (`Docs/Map/screenshots/lagoa_shore_preview.png`), OBJ check (no NaNs, no
+down-facing walk/bike faces, tree crowns and trunks all faces outward).
+
+### What to check in the editor (shore)
+
+* Lanes vs the OSM path ribbons from `build_area.py` (2 m `M_Path` ribbons on the same line): the new lanes sit
+  ~0.1-0.2 m above them; look for z-fighting or the old ribbon showing at the edges.
+* Lanes vs the shore bank and the water at 1.0 m (lanes ~1.7 m).
+* Tree/palm scale, density, and whether the faceted crowns read well from the road.
+* Water-side kiosks: are they believable or in the way?
+* Collision: trees, benches and kiosks have complex collision like everything else.
+
+### Known gaps
+
+* Fetch note: `fetch_beach.py` is now general (`--set beach|lagoa`, sets in `config -> feature_sets`); the
+  optional tree query is separate so a timeout does not lose the rest.
+* No rowing stadium / club structures, piers (22 mapped), Parque dos Patins sports courts (91 pitches mapped) or
+  the heliport yet. All are in `lagoa.gpkg` if wanted later.

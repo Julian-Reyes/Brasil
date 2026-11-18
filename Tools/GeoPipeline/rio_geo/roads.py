@@ -158,8 +158,12 @@ def solve_profiles(edges, nodes_xy, ground_fn, fixed_nodes, cfg, spacing=2.0, it
         over = grade > lim * 0.98
         if not over.any():
             break
-        w_slope[over] = np.minimum(w_slope[over] * 6.0, 1e4)
+        # max_slope_weight caps how hard a grade limit may override the ground data (default 1e4 = previous
+        # behaviour). ~1e2 keeps the noise smoothing but cannot lift a node tens of metres (Cantagalo, notes #2).
+        w_slope[over] = np.minimum(w_slope[over] * 6.0, cfg.get("max_slope_weight", 1e4))
 
+    if cfg.get("clamp_min_height", False):  # keep solved land roads above min_height_m (SE Lagoa ramp at -0.1 m)
+        z = np.maximum(z, cfg["min_height_m"])
     profiles = [np.column_stack([pts, z[idx]]) for idx, (pts, _) in zip(ids, samples)]
     return profiles, {node: float(z[v]) for node, v in var_of_node.items()}
 

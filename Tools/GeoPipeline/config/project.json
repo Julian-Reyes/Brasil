@@ -86,6 +86,8 @@
     "max_grade": {"_doc": "rise/run; null = follow terrain. Vidigal/Santa Teresa streets genuinely reach ~25-30%.",
                   "major": 0.12, "minor": 0.30, "path": null, "steps": null},
     "min_height_m": 1.0,
+    "max_slope_weight": 10000.0,
+    "clamp_min_height": false,
     "surface_offset_m": 0.06,
     "terrain_sink_m": 0.10
   },
@@ -125,6 +127,57 @@
       "beach_level_m": 0.5,
       "beach_min_area_m2": 20000.0
     }
+  },
+
+  "feature_sets": {
+    "_doc": "scripts/fetch_beach.py --set <name>: point features queried in a strip (pad_m) around the anchor polygons.",
+    "beach": {
+      "anchor_names": ["Praia do Leblon", "Praia de Ipanema", "Praia do Arpoador"],
+      "pad_m": 150.0,
+      "tags": {
+        "emergency": ["lifeguard", "lifeguard_tower", "lifeguard_base", "lifeguard_platform"],
+        "shop": ["kiosk"],
+        "amenity": ["fast_food", "bar", "cafe", "kiosk", "shower", "toilets", "drinking_water", "lifeguard"],
+        "leisure": ["pitch", "fitness_station", "playground"],
+        "man_made": ["tower", "lifeguard_tower"]
+      }
+    },
+    "lagoa": {
+      "anchor_names": ["Lagoa Rodrigo de Freitas"],
+      "pad_m": 120.0,
+      "tags": {
+        "shop": ["kiosk"],
+        "amenity": ["fast_food", "bar", "cafe", "kiosk", "restaurant", "ice_cream", "bench", "toilets",
+                    "drinking_water", "bicycle_rental", "boat_rental"],
+        "leisure": ["pitch", "fitness_station", "playground", "slipway"],
+        "man_made": ["pier"]
+      },
+      "optional_tags": {"natural": ["tree", "tree_row"]}
+    }
+  },
+
+  "shore": {
+    "_doc": "Lake shore promenade (scripts/build_shore.py, rio_geo/shore.py). Offsets are metres from the shoreline towards land. Built from the shoreline loop + measured profile only, so the compressed map can reuse the profile.",
+    "water_name": "Lagoa Rodrigo de Freitas",
+    "feature_set": "lagoa",
+    "path_names": ["Ciclovia da Lagoa Rodrigo de Freitas", "Lagoa Rodrigo de Freitas"],
+    "station_step_m": 2.0,
+    "measure_step_m": 5.0,
+    "normal_smoothing_m": 30.0,
+    "profile_smoothing_m": 30.0,
+    "path_search_m": 40.0,
+    "strip_max_m": 40.0,
+    "defaults_m": {"path_centre": 9.0},
+    "shore_clear_m": 0.8,
+    "obstacle_clear_m": 1.0,
+    "lanes_m": {"walk": 2.5, "bike": 2.5, "walk_min": 1.2, "bike_min": 2.0},
+    "lane_lift_m": 0.10,
+    "skirt_m": 0.4,
+    "kiosk": {"size_m": [3.2, 3.2, 2.6], "roof_m": [4.6, 4.6, 0.25], "offset_from_lanes_m": 2.0, "fill_gap_m": 600.0},
+    "bench": {"size_m": [1.8, 0.45, 0.45], "spacing_m": 35.0, "offset_from_lane_m": 0.7},
+    "vegetation": {"spacing_m": 11.0, "jitter_m": 2.5, "lane_gap_m": 1.0, "strip_max_m": 25.0, "min_strip_m": 3.0,
+                   "two_rows_from_m": 10.0, "clear_m": 2.5, "palm_fraction": 0.2,
+                   "tree_height_m": [7.0, 13.0], "crown_radius_m": [2.5, 4.5], "palm_height_m": [8.0, 12.0]}
   },
 
   "beach": {

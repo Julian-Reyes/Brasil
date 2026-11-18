@@ -283,11 +283,12 @@ def place_features(cl, prof, features, cfg):
 class TiledMesh:
     """Per-tile MeshBuilders keyed by (i, j); geometry is passed in UTM and re-pivoted per tile."""
 
-    def __init__(self, bbox, tile_m, make_builder):
+    def __init__(self, bbox, tile_m, make_builder, clip=False):
         self.W, self.S, E, N = bbox
         self.tile_m = tile_m
         self.ntx, self.nty = int(round((E - self.W) / tile_m)), int(round((N - self.S) / tile_m))
         self.tiles, self.make = {}, make_builder
+        self.clip, self.bbox = clip, bbox  # clip: drop geometry whose centroid / anchor is outside the AOI
 
     def key(self, e, n):
         return (int(np.clip((e - self.W) // self.tile_m, 0, self.ntx - 1)),
@@ -310,6 +311,10 @@ class TiledMesh:
         c, d = idx[1:, 1:].ravel(), idx[1:, :-1].ravel()
         flat = V.reshape(-1, 3)
         cen = (flat[a] + flat[c]) / 2
+        if self.clip:
+            W, S, E, N = self.bbox
+            ok = (cen[:, 0] >= W) & (cen[:, 0] < E) & (cen[:, 1] >= S) & (cen[:, 1] < N)
+            a, b, c, d, cen = a[ok], b[ok], c[ok], d[ok], cen[ok]
         keys = [self.key(e, n) for e, n in cen[:, :2]]
         groups = {}
         for q, k in enumerate(keys):
@@ -322,7 +327,13 @@ class TiledMesh:
             tris = np.vstack([inv[:, [0, 1, 2]], inv[:, [0, 2, 3]]])
             self.builder(k).add(material, flat[used] - self.pivot(k), tris)
 
+    def inside(self, x, y):
+        W, S, E, N = self.bbox
+        return W <= x < E and S <= y < N
+
     def add_object(self, material, verts, tris, anchor):
+        if self.clip and not self.inside(*anchor[:2]):
+            return
         k = self.key(*anchor[:2])
         self.builder(k).add(material, np.asarray(verts) - self.pivot(k), tris)
 

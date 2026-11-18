@@ -112,3 +112,15 @@ has no material asset.
 
 Postos are also written to `manifest.json` -> `markers` (name + location) for spawn points / gameplay; the
 importer ignores them for now.
+
+## Lake shore promenade (`scripts/build_shore.py`)
+
+Walking + bike lanes, benches, trees / palms and kiosks around `shore.water_name` (Lagoa Rodrigo de Freitas).
+Run after `build_area.py`; needs `scripts/fetch_beach.py --aoi <aoi> --set lagoa` for real kiosks, benches and
+trees (procedural only without it). Same design as the beach: loop (outer shoreline) + measured profile
+(`shore/shore_profile.json`) -> geometry; outputs kind `Shore`. One-time Unreal step: import
+`shore/SM_ShorePalette.obj` with materials into `/Game/Rio/Materials/Blockout/` (after the beach palette).
+Check `shore/shore_preview.png` and `shore/shore_report.json`. Settings: `config/project.json -> shore`.
+
+Editor helpers (untested): `unreal/goto.py` moves the viewport camera to a UTM / UE point, `unreal/trace_heights.py`
+line-traces heights at UTM points. See `Docs/Map/UnrealDebugGuide.md`.

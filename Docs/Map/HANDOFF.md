@@ -24,6 +24,11 @@ Read this first, then `README.md`, `DesignPriorities.md` and `Tools/GeoPipeline/
 * Never modify the Third Person template. Keep the 1:1 SOURCE levels separate from the compressed playable map.
 * Hero area: the Leblon to Arpoador beach (see `DesignPriorities.md`).
 
+## State on 2026-11-18, latest (MacBook, branch `macbook/lagoa`)
+
+* Lagoa shore promenade (`build_shore.py`). Road-height debugging steps for the editor:
+  **`UnrealDebugGuide.md`**. See `MacBookSessionNotes.md` -> Session 3.
+
 ## State on 2026-11-18, later (MacBook, branch `macbook/lagoa`, on top of `macbook/beach-blockout`)
 
 * Inland water (lagoon was a green field), flat-shore cap (beachfront / Lagoa ring road bumps), new AOI
