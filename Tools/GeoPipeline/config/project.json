@@ -95,6 +95,34 @@
     "foundation_sink_m": 0.5
   },
 
+  "beach": {
+    "_doc": "Hero beach blockout (scripts/build_beach.py). Everything is generated from the beachfront road centreline plus a measured cross-section profile, so the same profile can be re-applied to the compressed map's centreline. Offsets are metres seaward from the road centreline.",
+    "front_roads": ["Avenida Delfim Moreira", "Avenida Vieira Souto", "Avenida Francisco Bhering"],
+    "beach_names": ["Praia do Leblon", "Praia de Ipanema", "Praia do Arpoador"],
+    "station_step_m": 2.0,
+    "measure_step_m": 5.0,
+    "normal_smoothing_m": 50.0,
+    "profile_smoothing_m": 40.0,
+    "defaults_m": {"ciclovia_centre": 6.9, "sand_edge": 13.0, "waterline": 90.0},
+    "ciclovia_width_m": [2.2, 3.2],
+    "calcadao_min_width_m": 3.0,
+    "calcadao_max_width_m": 12.0,
+    "trim_margin_m": 10.0,
+    "ciclovia_lift_m": 0.10,
+    "calcadao_lift_m": 0.15,
+    "sand_drop_m": 0.5,
+    "sand_beyond_waterline_m": 15.0,
+    "sand_end_depth_m": -1.0,
+    "sand_cross_step_m": 3.0,
+    "terrain_clearance_m": 0.08,
+    "skirt_m": 0.6,
+    "canal_margin_m": 2.0,
+    "kiosk": {"size_m": [3.2, 3.2, 2.6], "roof_m": [4.6, 4.6, 0.25], "fill_gap_m": 350.0, "offset_from_sand_edge_m": 1.5},
+    "posto": {"base_m": [6.0, 4.0, 3.0], "cabin_m": [3.0, 3.0, 2.4], "column_m": 1.2, "cabin_floor_m": 6.0},
+    "palm": {"spacing_m": 12.0, "jitter_m": 2.0, "height_m": [8.0, 12.0], "clear_m": 6.0,
+             "offset_from_sand_edge_m": 0.9, "fronds": 7, "frond_length_m": 3.2}
+  },
+
   "verification_landmarks": [
     {"name": "Pao de Acucar summit", "lonlat": [-43.1566, -22.9486], "expected_m": 396, "tolerance_m": 60},
     {"name": "Corcovado summit", "lonlat": [-43.2105, -22.9519], "expected_m": 710, "tolerance_m": 60},

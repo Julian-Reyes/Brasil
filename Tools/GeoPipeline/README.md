@@ -20,6 +20,7 @@ uv pip install --python .venv/bin/python -r requirements.txt
 | 3 | `scripts/validate.py --aoi <aoi>` | `Docs/Map/validation/<aoi>.md` | Blocking checks: CRS, coverage, connectivity, licences. Warnings: DEM vs surveyed peaks. |
 | 4 | `scripts/reference_map.py --aoi <aoi>` | `Docs/Map/reference/<aoi>.png` | Top-down map of the real geography (Phase 3 design input). |
 | 5 | `scripts/build_area.py --aoi <aoi>` | `GeoData/exports/<aoi>/` | Tiled OBJ meshes, source road graph, manifest, verification report. |
+| 5b | `scripts/build_beach.py --aoi <aoi>` | `GeoData/exports/<aoi>/beach/` | Hero beach blockout; run after step 5, needs `scripts/fetch_beach.py --aoi <aoi>` (1b) for Postos/kiosks. See "Hero beach" below. |
 | 6 | `unreal/mcp_import_area.py` (via unreal-mcp) | `/Game/Rio/Generated/...` + actors | See "Unreal import" below. |
 
 AOIs are defined in `config/project.json` (`full`, `test_leblon_vidigal`). Add new test areas there.
@@ -74,3 +75,38 @@ re-import. Generated actors carry the tags `RioGenerated` and `RioArea:<aoi>` an
 
 The blockout materials in `/Game/Rio/Materials/Blockout/` were created once by importing
 `GeoData/exports/<aoi>/SM_BlockoutPalette.obj` with materials enabled; tile slot names match them.
+
+## Hero beach (`scripts/build_beach.py`)
+
+Sand, ciclovia, calcadao, kiosks, Postos, palm rows and the canal mouths (Jardim de Alah, Visconde de
+Albuquerque) for the Leblon to Arpoador beach. Order for an AOI that contains the beach:
+
+```sh
+.venv/bin/python scripts/fetch_beach.py --aoi test_leblon_arpoador   # once; Overpass, cached
+.venv/bin/python scripts/build_area.py  --aoi test_leblon_arpoador   # rewrites manifest.json
+.venv/bin/python scripts/build_beach.py --aoi test_leblon_arpoador   # appends kind "Beach" to manifest.json
+.venv/bin/python unreal/ue_remote.py unreal/import_area.py '{"aoi": "test_leblon_arpoador"}'
+```
+
+How it works (`rio_geo/beach.py`): the sea-side carriageway of `beach.front_roads` (Delfim Moreira, Vieira
+Souto, Francisco Bhering) is chained W->E into one 3D centreline, taking z from the solved road profiles. One-way
+edges count as sea-side when the sea is on their right (right-hand traffic); two-way edges by a probe toward the
+coast. Every 5 m a ray to the sea measures the ciclovia (OSM cycleway), the sand edge and the waterline (where
+the ray leaves the OSM beach polygons; coastline as fallback). The smoothed result is saved as
+`beach/beach_profile.json` with stations normalised 0..1, so the compressed map can re-apply the same profile
+to its own centreline. Geometry is built only from centreline + profile; the sand is draped over the generated
+terrain where that is higher. Postos and kiosks come from `beach.gpkg`; kiosk gaps over
+`beach.kiosk.fill_gap_m` are filled procedurally. All widths/heights/spacings are in `config/project.json` ->
+`beach`.
+
+Check `beach/beach_preview.png` (top down vs OSM, Jardim de Alah and Arpoador close-ups, profile, road height)
+and `beach/beach_report.json` before importing.
+
+**One-time Unreal step:** the beach uses new material slots (`M_Sand`, `M_Calcadao`, `M_Ciclovia`, `M_Kiosk`,
+`M_KioskRoof`, `M_Posto`, `M_PostoCabin`, `M_PalmTrunk`, `M_PalmLeaf`). Import
+`GeoData/exports/<aoi>/beach/SM_BeachPalette.obj` once *with materials* into `/Game/Rio/Materials/Blockout/`,
+exactly as was done for `SM_BlockoutPalette.obj`. `import_area.py` now stops with "missing material ..." if a slot
+has no material asset.
+
+Postos are also written to `manifest.json` -> `markers` (name + location) for spawn points / gameplay; the
+importer ignores them for now.

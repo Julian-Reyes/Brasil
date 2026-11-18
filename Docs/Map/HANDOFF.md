@@ -24,6 +24,13 @@ Read this first, then `README.md`, `DesignPriorities.md` and `Tools/GeoPipeline/
 * Never modify the Third Person template. Keep the 1:1 SOURCE levels separate from the compressed playable map.
 * Hero area: the Leblon to Arpoador beach (see `DesignPriorities.md`).
 
+## State on 2026-11-18 (MacBook, branch `macbook/beach-blockout`)
+
+* **Read `MacBookSessionNotes.md` first.** Beach blockout generator written (`scripts/build_beach.py`), not yet
+  imported into Unreal. Full-area reference layer downloaded on the laptop (copy it, or re-run `fetch_osm.py`).
+* The Cantagalo slope issue is *not* fixed by the reference layer: the cause is the minor-street grade limit
+  overriding the ground data (details and fix options in the notes).
+
 ## State on 2026-11-17
 
 * Done: pipeline, Vidigal test (`L_Rio_Test_LeblonVidigal`, `Phase4_TestReport.md`), hero beach test

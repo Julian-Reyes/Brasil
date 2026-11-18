@@ -57,7 +57,10 @@ for e in m["actors"]:
         raise RuntimeError("import failed: " + path)
     # set_material per index; editing a copy of static_materials does not stick
     for i, slot in enumerate(mesh.static_materials):
-        mesh.set_material(i, unreal.load_asset(MATERIALS + str(slot.material_slot_name)))
+        mat = unreal.load_asset(MATERIALS + str(slot.material_slot_name))
+        if mat is None:  # e.g. beach slots before SM_BeachPalette.obj was imported once (see GeoPipeline README)
+            raise RuntimeError("missing material " + MATERIALS + str(slot.material_slot_name) + " for " + path)
+        mesh.set_material(i, mat)
     # Nanite off: complex collision would come from the simplified Nanite fallback mesh, not the real surface
     nanite = mesh.get_editor_property("nanite_settings")
     nanite.enabled = False
