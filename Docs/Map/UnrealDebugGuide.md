@@ -63,7 +63,9 @@ Level: `L_Rio_Test_Lagoa` (AOI `test_lagoa`). Roads 80-215 m from the water, so 
 
 ## Problem 2: Cantagalo / Pavao-Pavaozinho grades (Copacabana side)
 
-Level: `L_Rio_Test_LeblonArpoador` (AOI `test_leblon_arpoador`), east edge.
+Level: `L_Rio_Test_LeblonArpoador` (AOI `test_leblon_arpoador`), east edge. Note: since the Vidigal session, the
+favela infill adds ~526 houses in Pavao-Pavaozinho here, which slightly changes the ground model; numbers below
+are from before that.
 
 | What | UTM | UE (cm) | Pipeline z |
 |---|---|---|---|

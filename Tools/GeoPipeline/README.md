@@ -124,3 +124,20 @@ Check `shore/shore_preview.png` and `shore/shore_report.json`. Settings: `config
 
 Editor helpers (untested): `unreal/goto.py` moves the viewport camera to a UTM / UE point, `unreal/trace_heights.py`
 line-traces heights at UTM points. See `Docs/Map/UnrealDebugGuide.md`.
+
+## Favelas, landmarks and places (Vidigal starting area)
+
+All inside `build_area.py` unless noted; settings in `config/project.json`.
+
+* **Landmark summits** (`landmark_peaks`): listed OSM peaks are raised to their surveyed `ele` with a smooth dome
+  (the 30 m DEM cuts steep granite summits short: Irmao Maior 382 vs 539 m).
+* **Favela infill** (`favela_infill`, `rio_geo/favela.py`): procedural houses in under-mapped favela polygons up to
+  a coverage target, keeping streets / becos / stairs clear; runs before the ground model, which subtracts the
+  infill footprints like mapped buildings. Water tanks on some roofs (`M_WaterTank`, blockout palette).
+* **Places** (`places`, `rio_geo/places.py`): flat terraces under OSM pitch outlines (`fetch_beach.py --set
+  <set>` writes them to the `areas` layer) and under designed hubs (`places.hubs`, UTM layout); houses and becos
+  inside are removed. Then run `scripts/build_places.py --aoi <aoi>` for pitch surfaces, goals, fences, retaining
+  walls, hub buildings and gameplay markers (`manifest.json -> markers`), plus `places/hub_preview_<n>.png`.
+  One-time Unreal step: import `places/SM_PlacesPalette.obj` with materials into `/Game/Rio/Materials/Blockout/`.
+
+Vidigal order: `clip_osm.py`, `fetch_beach.py --set vidigal`, `build_area.py`, `build_places.py`, import.

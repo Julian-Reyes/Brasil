@@ -275,3 +275,32 @@ def cap_flat_shores(hf, anchors, ccfg):
     capped = np.maximum(capped, np.where(np.isfinite(floor), floor, capped))
     hf.z = hf.z * (1 - weight) + capped * weight
     return before - hf.z
+
+
+def raise_landmark_peaks(z, transform, peaks):
+    """Landmark-summit correction (planned in Docs/Map/DataSources.md). The 30 m Copernicus DEM cuts steep granite
+    summits short (Irmao Maior 382 m vs 539 m surveyed, Corcovado 527 m vs 710 m). For each configured peak
+    (name, x, y, surveyed ele, radius_m) the ground at the OSM summit point is raised to `ele` with a smooth dome
+    falloff w = (1 - (d/R)^2)^2 (zero beyond R), capped at `ele` so a nearby DEM high point cannot overshoot.
+    Peaks are applied one after another, so overlapping domes (the two Dois Irmaos, 210 m apart) stay correct.
+    z is a raster with an affine `transform` (the 10 m ground window). Modified in place; returns a report."""
+    ny, nx = z.shape
+    cols, rows = np.meshgrid(np.arange(nx) + 0.5, np.arange(ny) + 0.5)
+    X, Y = transform * (cols, rows)
+    inv = ~transform
+    report = []
+    for name, x, y, ele, radius in peaks:
+        c, r = inv * (x, y)
+        if not (0 <= c < nx - 1 and 0 <= r < ny - 1):
+            report.append({"name": name, "status": "outside DEM window"})
+            continue
+        current = float(ndimage.map_coordinates(z, [[r - 0.5], [c - 0.5]], order=1)[0])
+        delta = ele - current
+        if delta <= 0:
+            report.append({"name": name, "ele": ele, "dem": round(current, 1), "raised_m": 0.0})
+            continue
+        w = np.clip(1 - (np.hypot(X - x, Y - y) / radius) ** 2, 0, None) ** 2
+        z[:] = np.where(w > 0, np.minimum(z + delta * w, np.maximum(z, ele)), z)
+        report.append({"name": name, "ele": ele, "dem": round(current, 1), "raised_m": round(delta, 1),
+                       "radius_m": radius})
+    return report

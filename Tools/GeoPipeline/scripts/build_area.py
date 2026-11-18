@@ -19,12 +19,18 @@ import time
 from pathlib import Path
 
 import geopandas as gpd
+import pyogrio
+import shapely
 import numpy as np
-from shapely.geometry import box
+import pandas as pd
+from shapely.geometry import Point, box
 from shapely.strtree import STRtree
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from rio_geo import buildings as bld  # noqa: E402
+from rio_geo import favela as fav  # noqa: E402
+from rio_geo import places as plc  # noqa: E402
+from rio_geo.beach import box as box_mesh  # noqa: E402
 from rio_geo import roads as rd  # noqa: E402
 from rio_geo import terrain as ter  # noqa: E402
 from rio_geo.common import (CONFIG, EXPORTS_DIR, PROCESSED_DIR, PROJECT_DIR, PROJECTED_CRS, RAW_DIR,  # noqa: E402
@@ -34,9 +40,15 @@ from rio_geo.meshio import MeshBuilder, write_mtl  # noqa: E402
 PALETTE = {
     "M_Terrain": (0.30, 0.42, 0.22), "M_RoadMajor": (0.06, 0.06, 0.07), "M_RoadMinor": (0.16, 0.16, 0.17),
     "M_Path": (0.62, 0.55, 0.42), "M_Steps": (0.80, 0.45, 0.15), "M_BuildingFormal": (0.72, 0.72, 0.70),
-    "M_BuildingInformal": (0.78, 0.40, 0.25), "M_Sea": (0.05, 0.20, 0.40),
+    "M_BuildingInformal": (0.78, 0.40, 0.25), "M_Sea": (0.05, 0.20, 0.40), "M_WaterTank": (0.10, 0.35, 0.70),
 }
 GEN_TAG = "RioGenerated"
+
+
+def bbox_box_mesh(centre, size, z0, z1):
+    """Axis-aligned closed-top box (no bottom), CCW outward faces. Returns verts, tris, normals."""
+    v, t = box_mesh(np.asarray(centre), 0.0, (size, size), z0, z1)
+    return v, t, None
 
 
 def log(msg, t0=[time.time()]):
@@ -80,11 +92,61 @@ def main():
     buildings["height_m"], buildings["height_src"] = [h for h, _ in hs], [s for _, s in hs]
     margin = 1000.0
     dsm, dsm_tf = ter.load_dsm_window(PROCESSED_DIR / "dem" / "full_10m.tif", bbox, margin=margin)
+
+    # ---------------- informal housing infill (under-mapped favelas). Before the ground model: the DSM contains
+    # the real unmapped houses, so their footprints must be subtracted like mapped buildings.
+    fcfg = CONFIG["favela_infill"]
+    infill_report, infill = [], gpd.GeoDataFrame(geometry=[], crs=PROJECTED_CRS)
+    buildings["water_tank"] = False
+    if fcfg["enabled"] and len(favelas):
+        circ, _ = rd.prepare_edges(edges, bbox, rcfg)
+        zones = [(str(r.get("name")), r.geometry) for _, r in favelas.iterrows()]
+        # designed hubs get the same infill around them (lower Vidigal lies outside OSM's favela outline), minus
+        # the parts already covered by a favela polygon so nothing is filled twice
+        for hub in CONFIG["places"]["hubs"]:
+            if hub.get("infill_radius_m") and box(*bbox).contains(Point(hub["center"])):
+                zone = Point(hub["center"]).buffer(hub["infill_radius_m"]).difference(favela_union or Point(0, 0))
+                zones.append((f"{hub['name']} surroundings", zone))
+        in_zone = buildings.geometry.centroid.within(shapely.union_all([z for _, z in zones]))
+        houses, infill_report = fav.generate_infill(zones, buildings[buildings["informal"] | in_zone],
+                                                    circ, dsm, dsm_tf, bbox, fcfg)
+        if houses:
+            infill = gpd.GeoDataFrame(houses, crs=PROJECTED_CRS)
+            infill["height_m"] = infill["levels"] * bcfg["informal_storey_m"] + 0.5
+            infill["height"] = infill["height_m"]  # so building_height() returns it for the ground model
+            infill["informal"], infill["height_src"] = True, "infill"
+            infill["osmid"] = "infill:" + infill["lot"]
+            buildings = gpd.GeoDataFrame(pd.concat([buildings, infill[["geometry", "height", "height_m", "informal",
+                                                                       "height_src", "osmid", "water_tank"]]],
+                                                   ignore_index=True), crs=PROJECTED_CRS)
+        log("favela infill: " + "; ".join(f"{r['favela']}: +{r['added']} houses, coverage "
+                                          f"{r['mapped_coverage']:.0%} -> {r.get('coverage_after', r['mapped_coverage']):.0%}"
+                                          for r in infill_report))
     # The ground model needs buildings for the whole DEM window, not just the AOI; otherwise rooftops just
     # outside the AOI leak in through the blur and the lowland opening. Prefer the full-region extract.
+    # ---------------- places: pitch / hub terraces and designed hub buildings (rio_geo/places.py). Houses inside
+    # them are removed from the meshes (the DSM still contains the real ones, so the ground model keeps them).
+    pcfg = CONFIG["places"]
+    pitch_areas = []
+    for fs in CONFIG["feature_sets"]:
+        path = osm / f"{fs}.gpkg"
+        if path.exists() and "areas" in [lyr for lyr, _ in pyogrio.list_layers(path)]:
+            pitch_areas.append(gpd.read_file(path, layer="areas"))
+    pitch_areas = gpd.GeoDataFrame(pd.concat(pitch_areas, ignore_index=True), crs=PROJECTED_CRS) if pitch_areas else None
+    terr = plc.terraces(pcfg, pitch_areas, bbox)
+    elems = plc.hub_elements(pcfg, bbox)
+    if terr or elems:
+        zone = plc.clear_zones(terr, elems, pcfg)
+        hit = buildings.geometry.intersects(zone)
+        log(f"places: {len(terr)} terraces ({sum(t['kind'] == 'pitch' for t in terr)} pitches), {len(elems)} hub "
+            f"elements; removed {int(hit.sum())} houses from them")
+        buildings = buildings[~hit].reset_index(drop=True)
+
     full_path = RAW_DIR / "osm" / "full" / "buildings.gpkg"
     if args.aoi != "full" and full_path.exists():
         ctx = gpd.read_file(full_path, bbox=(W - margin, S - margin, E + margin, N + margin))
+        if len(infill):
+            ctx = gpd.GeoDataFrame(pd.concat([ctx, infill[["geometry", "height"]]], ignore_index=True), crs=PROJECTED_CRS)
         ctx["informal"] = ctx.geometry.centroid.within(favela_union) if favela_union is not None else False
         ctx_h = [bld.building_height(r, bool(r["informal"]), bcfg)[0] for _, r in ctx.iterrows()]
         log(f"ground model uses {len(ctx)} full-region buildings within the DEM window")
@@ -92,6 +154,19 @@ def main():
     else:
         log("WARNING: full-region buildings not available; ground model limited to AOI buildings")
         ground10, _ = ter.ground_from_dsm(dsm, dsm_tf, buildings.geometry, buildings["height_m"])
+    peaks_report = []
+    full_ref = RAW_DIR / "osm" / "full" / "reference.gpkg"
+    if full_ref.exists():  # peaks from the full extract: a summit just outside the AOI still shapes its slopes
+        pts = gpd.read_file(full_ref, layer="points")
+        radii = CONFIG["landmark_peaks"]["radius_m"]
+        sel = pts[pts["name"].isin(radii) & pts["natural"].astype(str).eq("peak")]
+        peaks = [(r["name"], r.geometry.x, r.geometry.y, float(r["ele"]), radii[r["name"]])
+                 for _, r in sel.iterrows() if str(r.get("ele")) not in ("nan", "None")]
+        peaks.sort(key=lambda p: -p[3])  # tallest first, so a smaller neighbour is corrected on top of its tail
+        peaks_report = ter.raise_landmark_peaks(ground10, dsm_tf, peaks)
+        raised = [f"{p['name']} +{p['raised_m']} m" for p in peaks_report if p.get("raised_m")]
+        if raised:
+            log("landmark peaks raised to surveyed height: " + ", ".join(raised))
     ground = ter.resample_to_grid(ground10, dsm_tf, bbox, step)
     dsm_grid = ter.resample_to_grid(dsm, dsm_tf, bbox, step)
     log(f"terrain grid {ground.shape[1]}x{ground.shape[0]} @ {step} m; "
@@ -133,8 +208,19 @@ def main():
             + ", ".join(f"{b['name'] or b['kind']} @ {b['level_m']} m ({b['level_source']})"
                         for b in sorted(water_bodies, key=lambda b: -b["area_m2"])[:5]))
 
+    if terr:
+        plc.apply_terraces(ground, terr, pcfg["pitch_terraces"]["min_z_m"])
+        (out / "terraces.json").write_text(json.dumps(
+            [{k: (v.wkt if hasattr(v, "wkt") else v) for k, v in t.items()} for t in terr], indent=1))
+
     # ---------------- roads
     surf, tunnels = rd.prepare_edges(edges, bbox, rcfg)
+    if terr:
+        block = plc.hub_path_block(terr)
+        cut = surf["group"].isin(["path", "steps"]) & surf.geometry.intersects(block)
+        if cut.any():
+            log(f"places: dropped {int(cut.sum())} beco / stair edges crossing hub terraces")
+            surf = surf[~cut].reset_index(drop=True)
     nodes_xy = {r["osmid"]: (r.geometry.x, r.geometry.y) for _, r in nodes.iterrows()}
     # Tiered vertical alignment: each tier follows the terrain already carved by the tiers above it, so side
     # streets meet avenues at the avenue's height and parallel cycleways/footways sit on the same platform.
@@ -218,6 +304,11 @@ def main():
             if mesh is None:
                 continue
             tiles[key]["Buildings"].add("M_BuildingInformal" if r["informal"] else "M_BuildingFormal", *mesh)
+            if r.get("water_tank") == True:  # noqa: E712 - numpy bool or NaN; blue caixa d'agua on the laje (flat roof)
+                c = poly.representative_point()
+                top = zg.max() + h
+                tank = bbox_box_mesh((c.x - pivot[0], c.y - pivot[1]), 1.2, top, top + 1.1)
+                tiles[key]["Buildings"].add("M_WaterTank", *tank)
             height_sources[src] = height_sources.get(src, 0) + 1
             placed += 1
     log(f"buildings placed: {placed}; carriageway conflicts: {conflicts}")
@@ -288,6 +379,7 @@ def main():
         "tunnels_skipped": graph["tunnels_not_built"],
         "buildings": {"placed": placed, "height_sources": height_sources, "carriageway_conflicts": conflicts},
         "shore_cap": shore_cap,
+        "landmark_peaks": [p for p in peaks_report if p.get("status") != "outside DEM window"],
         "water_bodies": [{k: b[k] for k in ("name", "kind", "level_m", "level_source", "area_m2")}
                          for b in water_bodies],
         "triangles": {a["asset"]: a["triangles"] for a in manifest["actors"]},

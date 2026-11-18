@@ -341,3 +341,106 @@ the points fall exactly inside a mapped building (the rest sit on the sidewalk /
   optional tree query is separate so a timeout does not lose the rest.
 * No rowing stadium / club structures, piers (22 mapped), Parque dos Patins sports courts (91 pitches mapped) or
   the heliport yet. All are in `lagoa.gpkg` if wanted later.
+
+---
+
+# Session 4 (2026-11-18, MacBook): Vidigal starting area
+
+Branch `macbook/vidigal`, on top of `macbook/lagoa`. **Nothing seen in the editor.** Design decisions are in
+`DesignPriorities.md` -> "Starting area: Vidigal".
+
+## New test area `test_vidigal`
+
+AOI E679500-681500, N7455000-7457000 (2 x 2 km, 16 tiles, 2 m grid): the whole Vidigal favela, the Av. Niemeyer
+entrance, Praia do Vidigal / Sheraton, the Trilha Dois Irmaos and both summits (plus Rocinha's south edge
+beyond the ridge). Create level `/Game/Rio/Maps/L_Rio_Test_Vidigal` like the other test levels, then:
+
+```sh
+.venv/bin/python scripts/clip_osm.py     --aoi test_vidigal
+.venv/bin/python scripts/fetch_beach.py  --aoi test_vidigal --set vidigal   # POIs + pitch outlines (or copy vidigal.gpkg)
+.venv/bin/python scripts/build_area.py   --aoi test_vidigal
+.venv/bin/python scripts/build_places.py --aoi test_vidigal
+.venv/bin/python unreal/ue_remote.py unreal/import_area.py '{"aoi": "test_vidigal"}'
+```
+
+One-time palette imports (with materials, into `/Game/Rio/Materials/Blockout/`): re-import
+`SM_BlockoutPalette.obj` (new `M_WaterTank`), and import `places/SM_PlacesPalette.obj` (pitch, concrete, praca,
+goal, fence, retaining wall, shop / workshop / player house / hangout, parapet, awnings). The shore palette is
+needed too (benches, trees on the praca).
+
+Previews: `GeoData/exports/test_vidigal/preview.png`, `vidigal_infill_preview.png` (scratch render),
+`places/hub_preview_0.png`, `places/top_preview.png`; copies in `Docs/Map/screenshots/vidigal_*.png`.
+
+## Pipeline changes (affect every area)
+
+1. **Landmark-summit correction** (planned in `DataSources.md`, now built): `terrain.raise_landmark_peaks`,
+   config `landmark_peaks.radius_m`. The 30 m DEM had Irmao Maior at 382 m (surveyed 539), Irmao Menor 292
+   (439), Corcovado 527 (710), Pao de Acucar 301 (392). Each listed peak is raised at its OSM summit point to the
+   surveyed height with a smooth dome, capped at that height, tallest first. Result: Irmao Maior 537.9 m, Irmao
+   Menor 437.1 m. Radii keep the domes off houses (no buildings within 230 m of either Dois Irmaos summit;
+   Corcovado / Pao de Acucar have their summit structures inside the dome, which rise with it).
+2. **Favela housing infill** (`rio_geo/favela.py`, config `favela_infill`). OSM has 463 buildings in Vidigal;
+   reality is thousands. Inside each favela polygon (and each hub's 110 m surroundings), procedural 2-5 storey
+   houses on ~7 m lots oriented along the contours fill up to 55% coverage, keeping every street / beco / stair
+   clear (1.0 / 0.6 m clearance) and off mapped buildings. 35% get a blue water tank on the laje (new
+   `M_WaterTank`). Runs **before the ground model**, and the ground model subtracts the infill footprints too,
+   because the DSM already contains the real (unmapped) roofs.
+   Vidigal: +4,895 houses, 8% -> 49% coverage; Rocinha (south edge in this AOI): +6,089, 16% -> 55%;
+   Chacara do Ceu +408; hub surroundings +230. Deterministic (same houses every build).
+3. **Places** (`rio_geo/places.py`, `scripts/build_places.py`, config `places`): flat terraces under every OSM
+   pitch outline and the hub's designed spaces (in `build_area.py`, before the road solve; houses and becos inside
+   them are removed), then pitch surfaces, goals, 4 m fences, retaining walls, hub buildings and markers.
+   Terraces are never below 1.0 m (Sheraton tennis courts read as seabed otherwise).
+4. `fetch_beach.py` keeps polygon outlines in a second layer `areas` (pitches). New feature set `vidigal`.
+5. `build_area.py` imports grew (shapely, pyogrio); `bbox_box_mesh` helper for the water tanks.
+
+Regression: `test_leblon_vidigal`, `test_lagoa`, `test_leblon_arpoador` (+ beach and shore steps) all rebuild.
+Side effects: the infill now also runs there. Pavao-Pavaozinho in the beach area +526 houses (32% -> 54%), the
+Lagoa area +82, the old Vidigal test area gets the hub + infill too. This changes the Cantagalo corner from
+`UnrealDebugGuide.md` problem 2 (more houses, slightly different ground model): re-check it after re-import.
+
+## Central hub (idealised)
+
+Lower Vidigal, inside the last hairpin of Av. Pres. Joao Goulart before Av. Niemeyer (~40 m). Found by
+searching every point within 60 m of the avenue for the lowest relief over a 50 x 40 m box: 5.6 m here, versus
+13 m+ of retaining wall at the first site tried (the civic core at ~100 m, 47% cross-slope; kept in config as
+`_alternative_site`).
+
+| element | where | z |
+|---|---|---|
+| Campinho (40 x 19 m pitch, goals, fence, retaining walls) | in the hairpin, below street level | 40.0 m |
+| Praca (trees, benches) | in the bend | 43.4 m |
+| Padaria, Mercado, Farmacia, Barbearia (2 storeys, coloured awnings) | north side of the avenue's upper leg | 42.6-48.2 m |
+| Boteco | east end of the field | 40.8 m |
+| Oficina (car workshop) | on Caminho da Boa Vista | 29.9 m |
+| Mototaxi stand (canopy) | at the bend | 41.7 m |
+| Player house (3 storeys, laje, water tank) | beside the field | 39.1 m |
+| Crew hangout (2 storeys, rooftop) | tip of the bend, sea view | 33.2 m |
+
+Markers in `manifest.json -> markers`: `player_home`, `crew_hangout`, `shop_*`, `mototaxi_stand`, plus 19 real
+places (Vila Olimpica Adilio, Quadra do Alto, Bar da Laje, Ciosque, Anfitriao, Teatro do Vidigal, Igreja
+Metodista, UPP (Sede) `police_base`, Associacao dos Moradores, clinic, Mototaxi Cooper Zona Sul, the three
+Niemeyer motels, Sheraton, Bar Lacubaco, Pizzaria 3 Irmaos, Pastel do Ceu, Paladar Nordestino).
+
+To move anything: edit `places.hubs[0]` in `config/project.json` (UTM metres; `rotation_deg` for the whole hub,
+`face` = point an element's front looks at), re-run `build_area.py` + `build_places.py`. A layout must not overlap
+roads: I used a small check against the road graph while laying it out.
+
+## What to check in the editor (Vidigal)
+
+* Walk the hub: distances, field below the street (retaining wall height between the avenue and the field),
+  stairs between street / field / praca (there are **no stair meshes yet**, only the terrain slope + walls).
+* Infill from street level: does it read as a favela? It is visibly grid-like from above (7 m lots, contour
+  rotation); more irregularity (lot size, merged blocks, varied heights per street) is the obvious next pass.
+* Becos: walk a few stairs; houses must not block them.
+* Dois Irmaos from Leblon / Ipanema and from the hub: the summit dome shape (smooth, not granite-like).
+* The Rocinha edge got infill too (16% -> 55%); check it is not overbuilt.
+* Retaining walls (~526 m) and fences: scale.
+
+## Known gaps
+
+* No stair meshes / ramps between hub levels; no house doors; shop interiors none.
+* Hortifruti from the first layout was dropped (no room in the new one).
+* Lower Vidigal is outside OSM's favela polygon; only the hub's 110 m surroundings got infill there.
+* Infill edges at the AOI border: favela parts outside the AOI are not infilled, so the ground model there keeps
+  roof signal (only matters for other AOIs that overlap).

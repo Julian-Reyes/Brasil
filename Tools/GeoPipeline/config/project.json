@@ -46,6 +46,14 @@
       "terrain_grid_m": 2.5,
       "unreal_folder": "Test_Lagoa",
       "always_loaded": true
+    },
+    "test_vidigal": {
+      "description": "Starting area: the whole Vidigal favela on the Morro Dois Irmaos slope (Av. Pres. Joao Goulart switchbacks, the becos / stairs), the Av. Niemeyer entrance, Praia do Vidigal and the Sheraton, and the Trilha Dois Irmaos up to both peaks.",
+      "bbox_utm": [679500.0, 7455000.0, 681500.0, 7457000.0],
+      "tile_size_m": 500.0,
+      "terrain_grid_m": 2.0,
+      "unreal_folder": "Test_Vidigal",
+      "always_loaded": true
     }
   },
 
@@ -153,6 +161,17 @@
         "man_made": ["pier"]
       },
       "optional_tags": {"natural": ["tree", "tree_row"]}
+    },
+    "vidigal": {
+      "anchor_names": ["Vidigal"],
+      "pad_m": 150.0,
+      "tags": {
+        "leisure": ["pitch", "park", "playground", "sports_centre", "stadium", "fitness_station"],
+        "amenity": ["bar", "restaurant", "cafe", "fast_food", "place_of_worship", "school", "kindergarten", "community_centre", "theatre", "arts_centre", "clinic", "doctors", "pharmacy", "marketplace", "taxi", "bus_station", "police", "social_facility", "library"],
+        "shop": true,
+        "tourism": ["viewpoint", "hostel", "guest_house", "hotel", "attraction", "artwork"],
+        "historic": true
+      }
     }
   },
 
@@ -207,6 +226,197 @@
     "posto": {"base_m": [6.0, 4.0, 3.0], "cabin_m": [3.0, 3.0, 2.4], "column_m": 1.2, "cabin_floor_m": 6.0},
     "palm": {"spacing_m": 12.0, "jitter_m": 2.0, "height_m": [8.0, 12.0], "clear_m": 6.0,
              "offset_from_sand_edge_m": 0.9, "fronds": 7, "frond_length_m": 3.2}
+  },
+
+  "places": {
+    "_doc": "Terraces for sports pitches (OSM outlines) and designed hubs, their meshes and gameplay markers (rio_geo/places.py; terraces in build_area.py, meshes in scripts/build_places.py). Hub layouts are UTM metres: move them here after a walk-around test.",
+    "clear_margin_m": 2.0,
+    "pitch_terraces": {
+      "enabled": true,
+      "apron_m": 2.0,
+      "blend_m": 1.5,
+      "fence_m": 4.0,
+      "goal_m": {
+        "small": 3.0,
+        "large": 5.0
+      },
+      "large_pitch_m": 35.0,
+      "min_z_m": 1.0
+    },
+    "hub_buildings": {
+      "storey_m": 3.0,
+      "parapet_m": 0.9,
+      "awning_depth_m": 2.2,
+      "awning_z_m": 2.6
+    },
+    "hubs": [
+      {
+        "name": "Vidigal central hub",
+        "_doc": "Idealised gameplay core in lower Vidigal (~42 m), inside the last hairpin of Av. Pres. Joao Goulart before Av. Niemeyer: the flattest field-sized ground next to the avenue (5.6 m relief over 50 x 40 m). Real neighbours: Teatro do Vidigal (Nos do Morro), schools, Pizzaria 3 Irmaos, Pastel do Ceu, Bar Lacubaco, the Mototaxi Cooper stand at the Niemeyer entrance. Commercial street on the upper leg, campinho in the hairpin, small praca in the bend.",
+        "center": [680815.0, 7456050.0],
+        "rotation_deg": 19.0,
+        "terraces": [
+          {
+            "name": "campinho",
+            "center": [680802.0, 7456038.0],
+            "size": [44.0, 22.0],
+            "pitch": [40.0, 19.0],
+            "blend_m": 1.0
+          },
+          {
+            "name": "praca",
+            "center": [680857.0, 7456044.0],
+            "size": [18.0, 12.0],
+            "blend_m": 1.0,
+            "surface": "praca"
+          }
+        ],
+        "elements": [
+          {
+            "type": "shop",
+            "label": "Mercado",
+            "marker": "shop_grocery",
+            "center": [680766.0, 7456058.0],
+            "size": [8.0, 7.0],
+            "levels": 2,
+            "awning": "M_AwningRed",
+            "face": [680762.0, 7456046.0]
+          },
+          {
+            "type": "shop",
+            "label": "Farmacia",
+            "marker": "shop_pharmacy",
+            "center": [680781.0, 7456064.0],
+            "size": [7.0, 7.0],
+            "levels": 2,
+            "awning": "M_AwningGreen",
+            "face": [680777.0, 7456052.0]
+          },
+          {
+            "type": "shop",
+            "label": "Barbearia",
+            "marker": "shop_barber",
+            "center": [680796.0, 7456070.0],
+            "size": [7.0, 7.0],
+            "levels": 2,
+            "awning": "M_AwningBlue",
+            "face": [680792.0, 7456058.0]
+          },
+          {
+            "type": "shop",
+            "label": "Padaria",
+            "marker": "shop_bakery",
+            "center": [680751.0, 7456052.0],
+            "size": [8.0, 6.0],
+            "levels": 2,
+            "awning": "M_AwningYellow",
+            "face": [680747.0, 7456040.0]
+          },
+          {
+            "type": "shop",
+            "label": "Boteco",
+            "marker": "shop_bar",
+            "center": [680833.0, 7456047.0],
+            "size": [6.0, 6.0],
+            "levels": 1,
+            "awning": "M_AwningRed",
+            "face": [680802.0, 7456038.0],
+            "water_tank": false
+          },
+          {
+            "type": "workshop",
+            "label": "Oficina",
+            "marker": "shop_car_workshop",
+            "center": [680789.0, 7456011.0],
+            "size": [10.0, 8.0],
+            "levels": 1,
+            "face": [680806.0, 7456004.0],
+            "awning": "M_AwningBlue"
+          },
+          {
+            "type": "stand",
+            "label": "Mototaxi",
+            "marker": "mototaxi_stand",
+            "center": [680872.0, 7456052.0],
+            "size": [4.0, 3.0],
+            "levels": 0,
+            "water_tank": false
+          },
+          {
+            "type": "house",
+            "label": "Player house",
+            "marker": "player_home",
+            "center": [680768.0, 7456027.0],
+            "size": [7.0, 8.0],
+            "levels": 3,
+            "face": [680800.0, 7456041.0]
+          },
+          {
+            "type": "hangout",
+            "label": "Crew hangout",
+            "marker": "crew_hangout",
+            "center": [680893.0, 7456040.0],
+            "size": [9.0, 8.0],
+            "levels": 2,
+            "face": [680960.0, 7456040.0],
+            "awning": "M_AwningYellow"
+          }
+        ],
+        "_alternative_site": "First site tried: centre [680495, 7455945] at ~100 m (real civic core: Associacao dos Moradores, clinic). Rejected: 47% cross-slope, the campinho needed 13 m walls and the street drops 15% along the praca.",
+        "infill_radius_m": 110.0
+      }
+    ],
+    "landmarks": {
+      "_doc": "Real places marked for gameplay (name in the AOI's feature sets -> marker kind).",
+      "Vila Olímpica Adílio": "sports_complex",
+      "Quadra do Alto": "court",
+      "Bar da Laje": "rooftop_bar",
+      "Ciosque": "bar",
+      "Anfitrião": "theatre",
+      "Teátro do Vidigal": "theatre",
+      "Igreja Metodista do Vidigal": "church",
+      "UPP (Sede)": "police_base",
+      "Associação dos Moradores": "residents_association",
+      "Centro Municipal de Saúde Rodolpho Perisse / Vidigal": "clinic",
+      "Mototáxi Cooper Zona Sul": "mototaxi_stand",
+      "Hotel Shalimar": "motel",
+      "Motel Sinless": "motel",
+      "Nosso Hotel": "motel",
+      "Sheraton Rio Hotel & Resort": "hotel",
+      "Bar Lacubaco": "bar",
+      "Pizzaria 3 Irmãos": "restaurant",
+      "Tião - Pastel do Céu": "snack_bar",
+      "Paladar Nordestino": "restaurant"
+    }
+  },
+
+  "favela_infill": {
+    "_doc": "Procedural informal houses in under-mapped favelas (rio_geo/favela.py), before the ground model. Only adds up to `coverage` of each favela polygon (mapped buildings count); keeps every road/beco/stair/path clear.",
+    "enabled": true,
+    "coverage": 0.55,
+    "lot_m": 7.0,
+    "house_w_m": [4.5, 6.4],
+    "house_d_m": [4.5, 6.8],
+    "jitter_m": 0.8,
+    "min_footprint_m2": 12.0,
+    "empty_lot_fraction": 0.08,
+    "levels": [2, 5],
+    "levels_skew": 1.4,
+    "water_tank_fraction": 0.35,
+    "clear_road_m": 1.0,
+    "clear_path_m": 0.6,
+    "gap_to_mapped_m": 0.6,
+    "gap_between_m": 0.3
+  },
+
+  "landmark_peaks": {
+    "_doc": "Landmark-summit correction (rio_geo.terrain.raise_landmark_peaks): the 30 m DEM cuts steep granite summits short. Each named OSM peak (natural=peak, surveyed ele) is raised to its ele with a smooth dome of radius_m. Radii keep the domes off the nearest houses (Dois Irmaos: no buildings within 230 m).",
+    "radius_m": {
+      "Irmão Maior": 230.0,
+      "Irmão Menor": 200.0,
+      "Corcovado": 250.0,
+      "Pão de Açúcar": 200.0
+    }
   },
 
   "verification_landmarks": [

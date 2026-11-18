@@ -24,7 +24,13 @@ Read this first, then `README.md`, `DesignPriorities.md` and `Tools/GeoPipeline/
 * Never modify the Third Person template. Keep the 1:1 SOURCE levels separate from the compressed playable map.
 * Hero area: the Leblon to Arpoador beach (see `DesignPriorities.md`).
 
-## State on 2026-11-18, latest (MacBook, branch `macbook/lagoa`)
+## State on 2026-11-18, latest (MacBook, branch `macbook/vidigal`, on top of `macbook/lagoa`)
+
+* Vidigal starting area: test AOI `test_vidigal`, favela housing infill, Dois Irmaos at surveyed height, the
+  central hub (campinho, praca, shops, player house, crew hangout) and real landmarks. Design in
+  `DesignPriorities.md`; details and editor checklist in `MacBookSessionNotes.md` -> Session 4.
+
+## State on 2026-11-18 (MacBook, branch `macbook/lagoa`)
 
 * Lagoa shore promenade (`build_shore.py`). Road-height debugging steps for the editor:
   **`UnrealDebugGuide.md`**. See `MacBookSessionNotes.md` -> Session 3.
