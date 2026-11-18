@@ -1,4 +1,6 @@
-"""Step 1b - download beach furniture for an AOI (lifeguard posts, kiosks, trees, showers, pitches).
+"""Step 1b - download beach furniture for an AOI (lifeguard posts, kiosks, showers, pitches).
+
+Queries only a strip around config beach.beach_names (+150 m) when reference.gpkg exists.
 
 Kept separate from fetch_osm.py so the large full-area download does not have to be repeated. Point-like
 features only; the beach polygons, coastline and promenade paths already come from fetch_osm.py.
@@ -12,10 +14,11 @@ import argparse
 import sys
 from pathlib import Path
 
+import geopandas as gpd
 import osmnx as ox
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from rio_geo.common import CONFIG, PROJECTED_CRS, RAW_DIR, aoi_bbox_lonlat, write_metadata  # noqa: E402
+from rio_geo.common import CONFIG, PROJECTED_CRS, RAW_DIR, aoi_bbox_lonlat, utm_to_lonlat, write_metadata  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fetch_osm import flatten_for_gpkg, with_overpass_retry  # noqa: E402
@@ -24,12 +27,25 @@ BEACH_TAGS = {
     "emergency": ["lifeguard", "lifeguard_tower", "lifeguard_base", "lifeguard_platform"],
     "shop": ["kiosk"],
     "amenity": ["fast_food", "bar", "cafe", "kiosk", "shower", "toilets", "drinking_water", "lifeguard"],
-    "natural": ["tree", "tree_row"],
     "leisure": ["pitch", "fitness_station", "playground"],
     "man_made": ["tower", "lifeguard_tower"],
 }
 KEEP = ["name", "emergency", "shop", "amenity", "natural", "leisure", "man_made", "sport", "species",
         "genus", "leaf_type", "ref", "operator", "tower:type"]
+
+
+def beach_bbox_lonlat(osm_dir, pad_m=150.0):
+    """Query only a strip around the configured beaches: the whole-AOI query times out on the public servers."""
+    ref = osm_dir / "reference.gpkg"
+    if not ref.exists():
+        return None
+    polys = gpd.read_file(ref, layer="polygons")
+    sand = polys[polys["name"].isin(CONFIG["beach"]["beach_names"])]
+    if sand.empty:
+        return None
+    w, s, e, n = sand.total_bounds
+    lons, lats = zip(*[utm_to_lonlat(x, y) for x, y in ((w - pad_m, s - pad_m), (e + pad_m, n + pad_m))])
+    return (min(lons), min(lats), max(lons), max(lats))
 
 
 def main():
@@ -43,7 +59,8 @@ def main():
     ox.settings.requests_timeout = 300
     ox.settings.log_console = False
 
-    bbox = aoi_bbox_lonlat(args.aoi)
+    bbox = beach_bbox_lonlat(out) or aoi_bbox_lonlat(args.aoi)
+    print(f"[beach] query bbox (lon/lat) {tuple(round(v, 5) for v in bbox)}")
     f = with_overpass_retry(ox.features_from_bbox, bbox, tags=BEACH_TAGS)
     f = f.to_crs(PROJECTED_CRS)
     f["osm_type"] = [i[0] for i in f.index]

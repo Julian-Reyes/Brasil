@@ -22,6 +22,7 @@ from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
+import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from rio_geo import beach as bch  # noqa: E402
@@ -89,6 +90,16 @@ def main():
         features = gpd.read_file(osm / "beach.gpkg", layer="features")
     else:
         log("WARNING: no beach.gpkg (run scripts/fetch_beach.py): no Postos, procedural kiosks only")
+    # Postos are mapped inconsistently in OSM: 7-10 and 12 as amenity=toilets named "Posto N", Posto 11 only as a
+    # building. Add named Posto buildings ("Posto <number>" only, so fuel stations etc. are ignored).
+    blds = gpd.read_file(osm / "buildings.gpkg")
+    posto_blds = blds[blds["name"].astype(str).str.fullmatch(r"(?i)posto\s*\d+")].copy()
+    if len(posto_blds):
+        posto_blds["geometry"] = posto_blds.geometry.representative_point()
+        posto_blds["osm_type"], posto_blds["osm_id"] = "building", posto_blds.get("id", posto_blds.index)
+        posto_blds = posto_blds[["name", "osm_type", "osm_id", "geometry"]]
+        features = posto_blds if features is None else gpd.GeoDataFrame(
+            pd.concat([features, posto_blds], ignore_index=True), crs=features.crs)
 
     cl, used = bch.build_centreline(graph["edges"], cfg["front_roads"], coast, cfg,
                                     CONFIG["roads"]["surface_offset_m"])

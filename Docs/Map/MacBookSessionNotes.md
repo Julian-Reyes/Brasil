@@ -79,8 +79,8 @@ What it generates (one `SM_T<i><j>_Beach` mesh per 500 m tile, kind `Beach`, sam
   draped over the generated terrain where that is higher (~4% of vertices).
 * Canal mouths cut through the sand with a water strip (M_Sea): Jardim de Alah (lines up with the OSM canal
   polygon at E682911-682929) and the Visconde de Albuquerque outlet at the far west end.
-* Palms every ~12 m (jittered, deterministic) along the sea edge of the calcadao, ~306 of them, 8-12 m tall,
-  kept clear of kiosks, Postos and canals.
+* Palms every ~12 m (jittered, deterministic) along the sea edge of the calcadao, one every ~12 m, 8-12 m tall,
+  kept clear of kiosks, Postos and canals (290 after placing Postos and kiosks).
 * Kiosks and Postos: see section 3.
 
 Measured cross-section (metres seaward of the sea-side carriageway centreline; median):
@@ -137,7 +137,31 @@ fixes), OBJ check (no NaNs; no down-facing triangles; walkable faces up; box fac
 
 ## 3. Postos and kiosks
 
-PENDING: filled in once `fetch_beach.py` finishes.
+All six Postos come from OSM, but no lifeguard tags are used along Leblon/Ipanema. Postos 7, 8, 9, 10 and 12 are
+`amenity=toilets` nodes named "Posto N"; Posto 11 exists only as a building. `build_beach.py` matches the name
+`Posto <number>` in `beach.gpkg` and `buildings.gpkg` ("Subestacao Posto Seis", a substation, is ignored).
+
+| Posto | OSM | UTM (generated position) |
+|---|---|---|
+| 12 | node 3738890405 | see `beach_report.json` -> `postos` |
+| 11 | building 1446049120 | |
+| 10 | node 1494285480 | |
+| 9 | node 1494282707 | |
+| 8 | node 3738890406 | |
+| 7 | node 6350256966 | |
+
+Order W->E 12, 11, 10, 9, 8, 7, about 740 m apart. Postos are snapped onto the sand just beyond the calcadao
+(the OSM points are on the building/toilet). They are also in `manifest.json` -> `markers` with UE coordinates,
+e.g. for checking `PlayerStart_Posto9`.
+
+Kiosks: 21 from OSM (bars / cafes / snack bars / kiosks seaward of the road; restaurants on the building side
+are dropped), plus 2 procedural fills where the gap was over 350 m. Spacing ends up roughly 120-150 m. All
+kiosks are placed on the sand 1.5 m beyond the calcadao edge, not at the exact OSM point.
+
+`fetch_beach.py` only queries a strip around the three beaches (+150 m). The whole-AOI query timed out on all
+three Overpass mirrors six times in a row on 2026-11-18. Trees are not fetched; palms are procedural.
+
+Preview of the final result: `Docs/Map/screenshots/beach_blockout_preview.png`.
 
 ## Laptop setup (for reference; the mini needs none of this)
 
