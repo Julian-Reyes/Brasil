@@ -150,3 +150,128 @@ def grid_mesh(hf_z, west, south, step, ix0, ix1, iy0, iy1, pivot_e, pivot_n):
     c, d = idx[1:, 1:].ravel(), idx[1:, :-1].ravel()
     tris = np.concatenate([np.column_stack([a, b, c]), np.column_stack([a, c, d])])
     return verts, tris, normals
+
+
+# --------------------------------------------------------------------------------------------- inland water
+def select_water_bodies(ref_polygons, bbox, wcfg):
+    """Inland water polygons (lagoons, lakes, canals, ...) from the OSM reference layer that touch the AOI.
+    The sea is handled separately by ground_from_dsm (DSM <= 0.05 connected to the raster edge)."""
+    import shapely
+    kinds = set(wcfg["kinds"])
+    is_water = ref_polygons["water"].astype(str).isin(kinds) | (
+        ref_polygons["natural"].astype(str).eq("water") & ~ref_polygons["water"].astype(str).isin(wcfg["exclude"]))
+    sel = ref_polygons[is_water & (ref_polygons.area >= wcfg["min_area_m2"])]
+    sel = sel[sel.intersects(shapely.box(*bbox))]
+    return sel
+
+
+def water_level(poly, dsm, transform, name, wcfg):
+    """Configured level, else the median DSM inside the polygon (Copernicus flattens water surfaces)."""
+    override = wcfg["levels_m"].get(str(name))
+    if override is not None:
+        return float(override), "config"
+    inset = poly.buffer(-wcfg["dsm_inset_m"])
+    if inset.is_empty:
+        inset = poly
+    m = rasterize([inset], out_shape=dsm.shape, transform=transform, fill=0, default_value=1, dtype="uint8") > 0
+    if m.sum() < 3:
+        return float(wcfg["default_level_m"]), "default"
+    return float(np.median(dsm[m])), "dsm"
+
+
+def carve_water(hf, bodies, wcfg):
+    """Lower the ground inside each water polygon to a bed below its surface: shore_depth at the edge, then
+    bed_slope per metre from the shore, down to max_depth. bodies: [(polygon, level)]. Returns a mask of cells
+    that are under water (used for statistics)."""
+    import shapely
+    xs, ys = hf.coords()
+    X, Y = np.meshgrid(xs, ys)
+    wet = np.zeros(hf.shape, bool)
+    for poly, level in bodies:
+        w, s, e, n = poly.bounds
+        win = (X >= w - hf.step) & (X <= e + hf.step) & (Y >= s - hf.step) & (Y <= n + hf.step)
+        if not win.any():
+            continue
+        inside = np.zeros(hf.shape, bool)
+        inside[win] = shapely.contains_xy(poly, X[win], Y[win])
+        if not inside.any():
+            continue
+        dist = ndimage.distance_transform_edt(inside) * hf.step
+        depth = np.minimum(wcfg["shore_depth_m"] + dist * wcfg["bed_slope"], wcfg["max_depth_m"])
+        hf.z = np.where(inside, np.minimum(hf.z, level - depth), hf.z)
+        wet |= inside
+    return wet
+
+
+def water_surface_triangles(poly, level, pivot):
+    """Flat water surface for one (tile-clipped) polygon, holes (islands) preserved. Returns verts, tris."""
+    import shapely
+    from shapely.geometry.polygon import orient
+    verts, tris = [], []
+    for part in getattr(poly, "geoms", [poly]):
+        if part.geom_type != "Polygon" or part.area < 1.0:
+            continue
+        for tri in shapely.constrained_delaunay_triangles(part).geoms:
+            c = np.asarray(orient(tri, 1.0).exterior.coords)[:3, :2] - pivot
+            o = len(verts)
+            verts.extend((x, y, level) for x, y in c)
+            tris.append((o, o + 1, o + 2))
+    return np.array(verts).reshape(-1, 3), np.array(tris, dtype=np.int64).reshape(-1, 3)
+
+
+def load_terrain_from_manifest(manifest, bbox, step):
+    """Rebuild the generated (road-carved) terrain heightfield from build_area's Terrain tile OBJs."""
+    w, s, e, n = bbox
+    nx, ny = int(round((e - w) / step)) + 1, int(round((n - s) / step)) + 1
+    z = np.full((ny, nx), np.nan)
+    for a in manifest["actors"]:
+        if a["kind"] != "Terrain":
+            continue
+        with open(a["obj"]) as f:
+            v = np.array([ln.split()[1:4] for ln in f if ln.startswith("v ")], dtype=float) / 100.0
+        pe, pn = a["pivot_utm"]
+        ix = np.rint((v[:, 0] + pe - w) / step).astype(int)
+        iy = np.rint((v[:, 1] + pn - s) / step).astype(int)
+        z[iy, ix] = v[:, 2]
+    if np.isnan(z).any():
+        raise RuntimeError(f"terrain tiles incomplete: {int(np.isnan(z).sum())} missing grid vertices")
+    return Heightfield(w, s, step, z)
+
+
+def cap_flat_shores(hf, anchors, ccfg):
+    """Flat-shore cap. The 10 m DSM smears tall waterfront buildings, trees and the hillsides behind them onto
+    the narrow coastal strips, which the building subtraction and the lowland opening do not fully remove
+    (Lagoa east shore: ground 11.6 m where the road is at ~2.5 m; beachfront road bumps of 3-5 m).
+    Near a flat shore (lagoon / lake / large sand beach - never plain coastline, so cliffs are untouched)
+    the ground may rise at most  level + base_m + slope * distance; full effect within band_m, fading out over
+    blend_m. Land in the same zone is also kept at least bank_m above the water, so the water mesh never floats
+    above its own bank. anchors: [(polygon, level)]. Returns (z_before - z_after) for statistics."""
+    import shapely
+    xs, ys = hf.coords()
+    X, Y = np.meshgrid(xs, ys)
+    reach = ccfg["band_m"] + ccfg["blend_m"]
+    cap = np.full(hf.shape, np.inf)
+    floor = np.full(hf.shape, -np.inf)
+    weight = np.zeros(hf.shape)
+    for poly, level in anchors:
+        w, s, e, n = poly.bounds
+        win = (X >= w - reach) & (X <= e + reach) & (Y >= s - reach) & (Y <= n + reach)
+        if not win.any():
+            continue
+        inside = np.zeros(hf.shape, bool)
+        inside[win] = shapely.contains_xy(poly, X[win], Y[win])
+        if not inside.any():
+            continue
+        d = ndimage.distance_transform_edt(~inside) * hf.step
+        c = level + ccfg["base_m"] + ccfg["slope"] * d
+        t = np.clip((d - ccfg["band_m"]) / ccfg["blend_m"], 0, 1)
+        wt = 1 - t * t * (3 - 2 * t)
+        better = c < cap
+        cap = np.where(better & (wt > 0), c, cap)
+        floor = np.where((wt > 0) & ~inside, np.maximum(floor, level + ccfg["bank_m"]), floor)
+        weight = np.maximum(weight, np.where(wt > 0, wt, 0))
+    before = hf.z.copy()
+    capped = np.minimum(hf.z, np.where(np.isfinite(cap), cap, hf.z))
+    capped = np.maximum(capped, np.where(np.isfinite(floor), floor, capped))
+    hf.z = hf.z * (1 - weight) + capped * weight
+    return before - hf.z

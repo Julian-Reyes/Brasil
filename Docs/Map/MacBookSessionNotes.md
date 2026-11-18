@@ -172,3 +172,79 @@ Preview of the final result: `Docs/Map/screenshots/beach_blockout_preview.png`.
   (`--only-binary :all: --override`). `requirements.txt` is unchanged. The laptop's build of
   test_leblon_arpoador matched the mini's report exactly on building count (11,682).
 * GeoData re-downloaded on the laptop 2026-11-18 (Copernicus DEM + full OSM, ~600 MB).
+
+---
+
+# Session 2 (2026-11-18, MacBook): Lagoa Rodrigo de Freitas
+
+Branch `macbook/lagoa`, built on top of `macbook/beach-blockout`. Again **nothing has been seen in the editor.**
+
+## What changed in the pipeline (affects every area)
+
+1. **Inland water** (`build_area.py`, `rio_geo/terrain.py`, config `water`). Before, the lagoon was a flat green
+   field at 1.0 m: the sea detector only takes DSM <= 0.05 connected to the map edge, and the lagoon's DSM is
+   1.0. This was **11% of the beach test area**. Lagoons, lakes and canals from the reference layer (>= 3,000 m2)
+   now get a sloping bed (0.4 m at the shore, 6% slope, max 3 m deep) and flat water meshes per tile
+   (`SM_T<i><j>_Water`, kind `Water`, material `M_Sea`, no collision). Islands are holes, so they stay land.
+   * Level = median DSM inside the polygon (20 m inset). Lagoa: **1.0 m** (DSM). The real lagoon is probably
+     ~0.3-0.7 m above sea level; override in `water.levels_m` if it looks wrong.
+   * Narrow bodies take the level of a larger body within 60 m (`connect_m`). The Jardim de Alah canal read
+     2.44 m from its banks; it now takes the lagoon's 1.0 m.
+2. **Flat-shore cap** (`terrain.cap_flat_shores`, config `water.shore_cap`). Fixes ground contaminated by tall
+   waterfront buildings / trees / hillsides in the 10 m DSM. Near lagoons/lakes/canals and large sand beaches
+   (>= 20,000 m2: Leblon, Ipanema, Copacabana) ground may rise at most `level + 1.0 + 0.04 x distance`, full
+   within 35 m of the water, fading out by 70 m. Land in that zone is also kept at least 0.6 m above the water
+   (so a water mesh never floats over its own bank). Plain coastline and small coves (Praia do Diabo, Arpoador)
+   are not anchors, so cliffs and rocks are untouched.
+   * First try used 60 m + 100 m fade and cut up to 30 m into the hill foot on the Lagoa east shore (Fonte da
+     Saudade). Tightened to 35 + 35 m; the DSM there climbs 15 m -> 28 m between 32 and 62 m from the water.
+3. New tool **`scripts/preview_area.py --aoi <aoi> --roads "<name>" ...`**: top-down hillshade + water + roads +
+   buildings from the exported files, and road height profiles. Output `GeoData/exports/<aoi>/preview.png`.
+   `load_terrain_from_manifest` moved from `build_beach.py` into `rio_geo/terrain.py`.
+
+Effect on existing areas (re-import both on the mini):
+
+| | before | after |
+|---|---|---|
+| Beach area: lagoon | green field at 1.0 m | water at 1.0 m, bed down to -2 m |
+| Beachfront road peaks | 5.0 / 3.0 / 2.3 / 3.8 / 2.0 / 3.8 m | 3.9 / 2.2 / 2.2 / 2.3 / 2.0 / 3.8 m |
+| Lagoa east shore, Epitacio Pessoa | 11-12 m | ~3 m |
+| Lagoa ring roads near water | 1.0 m (= water level) | 1.6 m |
+| Vidigal | - | same 46 meshes / 3,947 buildings; ground lowered up to 4.8 m near the Leblon west end |
+
+The beach blockout was re-run on the new terrain: terrain stays below the calcadao everywhere (worst -0.18 m).
+
+## New test area `test_lagoa`
+
+AOI E682000-685000, N7457000-7460000 (3 x 3 km, 36 tiles, 2.5 m grid): the lagoon with both islands, the ring,
+Corte do Cantagalo, Jardim de Alah canal, Parque dos Patins, edges of Humaita / Jardim Botanico / the racecourse.
+123 meshes, 3.54 M triangles, 8,224 buildings, 2,748 surface road edges. Steepest drivable streets ~44%
+(Rua Frei Veloso and Humaita side streets on real hills). No spikes like Cantagalo.
+
+On the mini: create level `/Game/Rio/Maps/L_Rio_Test_Lagoa` (World Partition + georeferencing, same as the
+other test levels), then
+
+```sh
+.venv/bin/python scripts/clip_osm.py --aoi test_lagoa
+.venv/bin/python scripts/build_area.py --aoi test_lagoa
+.venv/bin/python unreal/ue_remote.py unreal/import_area.py '{"aoi": "test_lagoa"}'
+```
+
+Preview: `Docs/Map/screenshots/lagoa_preview.png`.
+
+## Open issues (Lagoa)
+
+* **SE corner (Corte do Cantagalo / Humaita), roads 80-215 m from the water, outside the cap:**
+  * trunk_link ramp from 15.7 m down to **-0.1 m** in 66 m (24%, below sea level on land), top at
+    E684695 N7457951 (DSM 7.0). Clearly wrong.
+  * Epitacio Pessoa trunk_link 12.1 m at E684652 N7457763 (DSM 16.2), trunk 9.1 m at E684356 N7458273
+    (DSM 19.8). Possibly partly real (the roads climb toward the cut); check against the real site.
+  * A 15 m spike in the Epitacio Pessoa profile near a viaduct.
+  The road solver does not clamp its *result* to `min_height_m` (only the data term), hence the -0.1 m.
+* Borges de Medeiros has small V-dips (1.6 -> 1.0 m) at side-street junctions where the side street lies
+  outside the cap zone.
+* Canal (1.0 m) meets the beach-mouth water strip (0.02 m) with a 1 m step at the calcadao. A weir there is
+  plausible, but check how it looks.
+* Lagoa shore details are only what OSM gives as roads: the "Ciclovia da Lagoa" is mapped as a 2 m footway
+  ribbon. No Lagoa kiosks, Parque dos Patins furniture or rowing stadium detail yet.
+* Water has no collision: the player falls through to the bed. Fine for a blockout.

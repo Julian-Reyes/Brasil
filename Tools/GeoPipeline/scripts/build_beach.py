@@ -41,25 +41,6 @@ def log(msg, t0=[time.time()]):
     print(f"[{time.time() - t0[0]:6.1f}s] {msg}", flush=True)
 
 
-def load_terrain(manifest, bbox, step):
-    """Rebuild the generated (road-carved) terrain heightfield from build_area's tile OBJs."""
-    W, S, E, N = bbox
-    nx, ny = int(round((E - W) / step)) + 1, int(round((N - S) / step)) + 1
-    z = np.full((ny, nx), np.nan)
-    for a in manifest["actors"]:
-        if a["kind"] != "Terrain":
-            continue
-        with open(a["obj"]) as f:
-            v = np.array([ln.split()[1:4] for ln in f if ln.startswith("v ")], dtype=float) / 100.0
-        pe, pn = a["pivot_utm"]
-        ix = np.rint((v[:, 0] + pe - W) / step).astype(int)
-        iy = np.rint((v[:, 1] + pn - S) / step).astype(int)
-        z[iy, ix] = v[:, 2]
-    if np.isnan(z).any():
-        raise RuntimeError(f"terrain tiles incomplete: {int(np.isnan(z).sum())} missing grid vertices")
-    return ter.Heightfield(W, S, step, z)
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--aoi", required=True)
@@ -113,7 +94,7 @@ def main():
     log(f"profile measured: {prof['measured']}; canal spans {prof['canal']}")
 
     postos, kiosks = bch.place_features(cl, prof, features, cfg)
-    terrain = load_terrain(manifest, bbox, aoi_cfg["terrain_grid_m"])
+    terrain = ter.load_terrain_from_manifest(manifest, bbox, aoi_cfg["terrain_grid_m"])
     tm = bch.TiledMesh(bbox, aoi_cfg["tile_size_m"], MeshBuilder)
     stats = bch.build_geometry(cl, prof, terrain, tm, cfg, postos, kiosks)
     dbg = stats.pop("_debug")

@@ -23,7 +23,9 @@ uv pip install --python .venv/bin/python -r requirements.txt
 | 5b | `scripts/build_beach.py --aoi <aoi>` | `GeoData/exports/<aoi>/beach/` | Hero beach blockout; run after step 5, needs `scripts/fetch_beach.py --aoi <aoi>` (1b) for Postos/kiosks. See "Hero beach" below. |
 | 6 | `unreal/mcp_import_area.py` (via unreal-mcp) | `/Game/Rio/Generated/...` + actors | See "Unreal import" below. |
 
-AOIs are defined in `config/project.json` (`full`, `test_leblon_vidigal`). Add new test areas there.
+AOIs are defined in `config/project.json` (`full`, `test_leblon_vidigal`, `test_leblon_arpoador`, `test_lagoa`). Add new test areas there.
+
+`build_area.py` also handles inland water (config `water`: lagoon/lake/canal beds + flat water meshes, kind `Water`) and the flat-shore cap near lagoons and large beaches (`water.shore_cap`). Check any built area with `scripts/preview_area.py --aoi <aoi> --roads "<road name>"` (writes `GeoData/exports/<aoi>/preview.png`).
 
 ## What `build_area.py` does
 

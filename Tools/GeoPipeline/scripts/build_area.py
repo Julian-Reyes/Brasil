@@ -97,6 +97,42 @@ def main():
     log(f"terrain grid {ground.shape[1]}x{ground.shape[0]} @ {step} m; "
         f"ground {ground.z.min():.1f}..{ground.z.max():.1f} m")
 
+    # ---------------- inland water (lagoons, lakes, canals). Carved before the roads so roads crossing a canal
+    # without a bridge tag still win; bridges are not carved, so the water stays visible under them.
+    wcfg = CONFIG["water"]
+    water_bodies, shore_cap = [], None
+    if (osm / "reference.gpkg").exists():
+        for _, r in ter.select_water_bodies(ref, bbox, wcfg).iterrows():
+            level, src = ter.water_level(r.geometry, dsm, dsm_tf, r.get("name"), wcfg)
+            water_bodies.append({"name": None if str(r.get("name")) == "nan" else r.get("name"),
+                                 "kind": str(r.get("water")) if str(r.get("water")) != "nan" else "water",
+                                 "geom": r.geometry, "level_m": round(level, 2), "level_source": src,
+                                 "area_m2": round(r.geometry.area)})
+        # Narrow bodies (canals) give a DSM level contaminated by their banks (Jardim de Alah canal: 2.44 m next to
+        # the 1.0 m lagoon it drains). If one touches a larger body, it takes that body's level.
+        for b in sorted(water_bodies, key=lambda b: -b["area_m2"]):
+            if b["level_source"] == "config":
+                continue
+            narrow = b["geom"].buffer(-wcfg["dsm_inset_m"]).area < 0.3 * b["area_m2"]
+            bigger = [o for o in water_bodies if o["area_m2"] > b["area_m2"]
+                      and b["geom"].distance(o["geom"]) <= wcfg["connect_m"]]
+            if narrow and bigger:
+                o = max(bigger, key=lambda o: o["area_m2"])
+                b["level_m"], b["level_source"] = o["level_m"], f"connected:{o['name'] or o['kind']}"
+        ccfg = wcfg["shore_cap"]
+        beaches = ref[ref["natural"].astype(str).eq("beach") & (ref.area >= ccfg["beach_min_area_m2"])]
+        anchors = [(b["geom"], b["level_m"]) for b in water_bodies] + \
+                  [(g, ccfg["beach_level_m"]) for g in beaches.geometry]
+        lowered = ter.cap_flat_shores(ground, anchors, ccfg)
+        shore_cap = {"anchors": len(anchors), "beaches": sorted(set(beaches["name"].dropna())),
+                     "cells_lowered_over_1m": int((lowered > 1.0).sum()), "max_lowered_m": round(float(lowered.max()), 2)}
+        log(f"flat-shore cap: {len(anchors)} anchors; lowered {shore_cap['cells_lowered_over_1m']} cells by > 1 m "
+            f"(max {shore_cap['max_lowered_m']} m)")
+        wet = ter.carve_water(ground, [(b["geom"], b["level_m"]) for b in water_bodies], wcfg)
+        log(f"inland water: {len(water_bodies)} bodies, {wet.mean():.1%} of the AOI; "
+            + ", ".join(f"{b['name'] or b['kind']} @ {b['level_m']} m ({b['level_source']})"
+                        for b in sorted(water_bodies, key=lambda b: -b["area_m2"])[:5]))
+
     # ---------------- roads
     surf, tunnels = rd.prepare_edges(edges, bbox, rcfg)
     nodes_xy = {r["osmid"]: (r.geometry.x, r.geometry.y) for _, r in nodes.iterrows()}
@@ -136,7 +172,8 @@ def main():
     def tile_of(e, n):
         return (int(np.clip((e - W) // tile_m, 0, ntx - 1)), int(np.clip((n - S) // tile_m, 0, nty - 1)))
 
-    tiles = {(i, j): {"Terrain": MeshBuilder(), "Roads": MeshBuilder(), "Buildings": MeshBuilder()}
+    tiles = {(i, j): {"Terrain": MeshBuilder(), "Roads": MeshBuilder(), "Buildings": MeshBuilder(),
+                      "Water": MeshBuilder()}
              for i in range(ntx) for j in range(nty)}
     for i in range(ntx):
         for j in range(nty):
@@ -144,6 +181,13 @@ def main():
             v, t, nrm = ter.grid_mesh(terrain.z, terrain.west, terrain.south, step, i * per_tile,
                                       (i + 1) * per_tile, j * per_tile, (j + 1) * per_tile, pe, pn)
             tiles[(i, j)]["Terrain"].add("M_Terrain", v, t, nrm)
+            cell = box(pe, pn, pe + tile_m, pn + tile_m)
+            for b in water_bodies:
+                piece = b["geom"].intersection(cell)
+                if piece.is_empty:
+                    continue
+                v, t = ter.water_surface_triangles(piece, b["level_m"], (pe, pn))
+                tiles[(i, j)]["Water"].add("M_Sea", v, t, [(0.0, 0.0, 1.0)] * len(v))
 
     for (_, r), prof in zip(surf.iterrows(), profiles):
         lift = rcfg["surface_offset_m"] + r["rank"] * 0.004
@@ -203,7 +247,7 @@ def main():
                 "asset": name, "kind": kind, "obj": str(out / "tiles" / f"{name}.obj"),
                 "label": f"GEN_T{i}{j}_{kind}", "location_cm": [x, y, z], "tile": [i, j],
                 "pivot_utm": [pe, pn], "materials": sorted(mb.parts), "triangles": mb.triangle_count,
-                "collision": "complex_as_simple"})
+                "collision": "none" if kind == "Water" else "complex_as_simple"})
     sea = MeshBuilder()
     pad = 3000.0  # extend the sea beyond the AOI so test levels do not end in a void
     sea.add("M_Sea", [(-pad, -pad, 0), (E - W + pad, -pad, 0), (E - W + pad, N - S + pad, 0), (-pad, N - S + pad, 0)],
@@ -243,6 +287,9 @@ def main():
                               for g, c, n, L in steep],
         "tunnels_skipped": graph["tunnels_not_built"],
         "buildings": {"placed": placed, "height_sources": height_sources, "carriageway_conflicts": conflicts},
+        "shore_cap": shore_cap,
+        "water_bodies": [{k: b[k] for k in ("name", "kind", "level_m", "level_source", "area_m2")}
+                         for b in water_bodies],
         "triangles": {a["asset"]: a["triangles"] for a in manifest["actors"]},
     }
     write_metadata(out / "report.json", **report)

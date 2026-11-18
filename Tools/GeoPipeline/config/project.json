@@ -38,6 +38,14 @@
       "terrain_grid_m": 2.5,
       "unreal_folder": "Test_LeblonArpoador",
       "always_loaded": true
+    },
+    "test_lagoa": {
+      "description": "Lagoa Rodrigo de Freitas: the lagoon with its islands, the Epitacio Pessoa / Borges de Medeiros ring, Corte do Cantagalo, Jardim de Alah canal, Parque dos Patins, edges of Humaita / Jardim Botanico / Gavea racecourse.",
+      "bbox_utm": [682000.0, 7457000.0, 685000.0, 7460000.0],
+      "tile_size_m": 500.0,
+      "terrain_grid_m": 2.5,
+      "unreal_folder": "Test_Lagoa",
+      "always_loaded": true
     }
   },
 
@@ -93,6 +101,30 @@
     "formal_small_levels": [2, 4],
     "informal_levels": [2, 4],
     "foundation_sink_m": 0.5
+  },
+
+  "water": {
+    "_doc": "Inland water (lagoons, lakes, canals) from the OSM reference layer: ground carved to a bed below the surface, flat water meshes per tile (kind Water, M_Sea, no collision). Level = levels_m override, else median DSM inside the polygon (inset dsm_inset_m). The sea is separate (ground_from_dsm).",
+    "kinds": ["lagoon", "lake", "reservoir", "pond", "canal", "river", "basin"],
+    "exclude": ["fountain", "pool", "wastewater"],
+    "min_area_m2": 3000.0,
+    "levels_m": {},
+    "default_level_m": 0.5,
+    "dsm_inset_m": 20.0,
+    "shore_depth_m": 0.4,
+    "bed_slope": 0.06,
+    "max_depth_m": 3.0,
+    "connect_m": 60.0,
+    "shore_cap": {
+      "_doc": "Flat-shore cap (rio_geo.terrain.cap_flat_shores): near lagoons/lakes/canals and large sand beaches the ground may rise at most level + base_m + slope * distance; full within band_m, fading over blend_m. Small beaches are excluded because they sit against rock (Praia do Diabo / Arpoador).",
+      "band_m": 35.0,
+      "blend_m": 35.0,
+      "base_m": 1.0,
+      "slope": 0.04,
+      "bank_m": 0.6,
+      "beach_level_m": 0.5,
+      "beach_min_area_m2": 20000.0
+    }
   },
 
   "beach": {
