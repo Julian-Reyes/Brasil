@@ -24,6 +24,25 @@ Read this first, then `README.md`, `DesignPriorities.md` and `Tools/GeoPipeline/
 * Never modify the Third Person template. Keep the 1:1 SOURCE levels separate from the compressed playable map.
 * Hero area: the Leblon to Arpoador beach (see `DesignPriorities.md`).
 
+## Next session (agreed 2026-11-18, not started)
+
+Branch from `macbook/vidigal` (all three MacBook branches are pushed; vidigal contains the others).
+
+1. **Hub praca:** make it the centre of the hub, bigger, next to the campinho, shops / boteco / kiosk around it.
+   The hub stays in lower Vidigal where regular residents live (see `DesignPriorities.md`).
+2. **Hub stairs:** walkable stair meshes connecting street, campinho and praca (right now only slopes and
+   retaining walls; the field may not be reachable on foot).
+3. **Stairways everywhere:** turn the mapped `highway=steps` (7.4 km in Vidigal) from flat ribbons into stepped
+   meshes.
+4. **Less grid-like infill:** varied lot sizes / heights, merged blocks, colour variation (painted houses).
+5. **Details:** house doors / entrances, overhead wire tangles, narrow car access, lookout points.
+6. Later, after the walk-around test: one or two signature escadarias (e.g. a long painted stair from the hub
+   toward the top).
+
+Still open from earlier: Unreal verification of everything (no editor on the MacBook), `UnrealDebugGuide.md`
+problems 1-2, the restaurants across the Lagoa ring road (decide after the drive / walk test), then the
+compressed map.
+
 ## State on 2026-11-18, latest (MacBook, branch `macbook/vidigal`, on top of `macbook/lagoa`)
 
 * Vidigal starting area: test AOI `test_vidigal`, favela housing infill, Dois Irmaos at surveyed height, the

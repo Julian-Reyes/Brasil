@@ -61,6 +61,15 @@ Bar da Laje (rooftop bar with the view), Anfitriao theatre, Teatro do Vidigal, I
 base, Associacao dos Moradores, clinic, Mototaxi Cooper Zona Sul, the Av. Niemeyer motels, the Sheraton, the
 Dois Irmaos trail to the summits.
 
+**Hub placement rule (user, 2026-11-18):** the hub is where the regular, non-rich residents live, in the lower /
+middle favela. **Not at the top:** Bar da Laje / the top of Vidigal is a famous tourist and wealthier spot, so it
+belongs to the realistic zone as a destination, never the starting hub. "Idealised" here means stylised: a
+designed, curated version of the real place.
+
+**Praca in the hub (user, 2026-11-18):** the hub should be built around a proper praca (public square: paved,
+trees, benches, maybe a kiosk), the social heart, next to the campinho, with the shops and boteco around it.
+The current blockout's praca (18 x 12 m tucked in a road bend) is too small and off to the side.
+
 **Outside the hub: realistic Vidigal.** Dense informal housing on the real street / beco / stair network
 (procedural infill where OSM is under-mapped), and Vidigal's real iconic places where they exist.
 
