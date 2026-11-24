@@ -16,6 +16,7 @@ Usage:  .venv/bin/python scripts/fetch_beach.py --aoi test_leblon_arpoador      
         .venv/bin/python scripts/fetch_beach.py --aoi test_lagoa --set lagoa
 """
 import argparse
+import math
 import sys
 from pathlib import Path
 
@@ -24,7 +25,8 @@ import osmnx as ox
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from rio_geo.common import CONFIG, PROJECTED_CRS, RAW_DIR, aoi_bbox_lonlat, utm_to_lonlat, write_metadata  # noqa: E402
+from rio_geo.common import (CONFIG, PROJECTED_CRS, RAW_DIR, aoi_bbox_lonlat, lonlat_to_utm,  # noqa: E402
+                            utm_to_lonlat, write_metadata)
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fetch_osm import flatten_for_gpkg, with_overpass_retry  # noqa: E402
@@ -47,8 +49,38 @@ def anchor_bbox_lonlat(osm_dir, names, pad_m):
     return (min(lons), min(lats), max(lons), max(lats))
 
 
-def fetch(bbox, tags, polygons_out=None):
-    f = with_overpass_retry(ox.features_from_bbox, bbox, tags=tags)
+def chunk_bboxes(bbox, chunk_m):
+    """Split a lon/lat bbox into a grid of cells about chunk_m wide (in UTM metres)."""
+    w, s, e, n = bbox
+    (x0, y0), (x1, y1) = lonlat_to_utm(w, s), lonlat_to_utm(e, n)
+    nx, ny = max(1, math.ceil((x1 - x0) / chunk_m)), max(1, math.ceil((y1 - y0) / chunk_m))
+    lons = [w + (e - w) * i / nx for i in range(nx + 1)]
+    lats = [s + (n - s) * j / ny for j in range(ny + 1)]
+    return [(lons[i], lats[j], lons[i + 1], lats[j + 1]) for j in range(ny) for i in range(nx)]
+
+
+def fetch_chunked(bbox, tags, chunk_m, label):
+    """One small Overpass request per cell instead of one large one (large ones time out on the public servers).
+    Each cell's response lands in the OSMnx cache, so a re-run after a failure only re-requests missing cells.
+    Features crossing cell borders come back from several cells and are de-duplicated by OSM id."""
+    cells = chunk_bboxes(bbox, chunk_m)
+    parts = []
+    for k, cell in enumerate(cells, 1):
+        try:
+            part = with_overpass_retry(ox.features_from_bbox, cell, tags=tags)
+        except ox._errors.InsufficientResponseError:  # nothing with these tags in this cell
+            part = None
+        print(f"[{label}] cell {k}/{len(cells)}: {0 if part is None else len(part)} features", flush=True)
+        if part is not None and len(part):
+            parts.append(part)
+    if not parts:
+        raise ox._errors.InsufficientResponseError(f"no features for {list(tags)} in {bbox}")
+    f = pd.concat(parts)
+    return gpd.GeoDataFrame(f[~f.index.duplicated()], crs=parts[0].crs)
+
+
+def fetch(bbox, tags, chunk_m, label, polygons_out=None):
+    f = fetch_chunked(bbox, tags, chunk_m, label)
     f = f.to_crs(PROJECTED_CRS)
     if polygons_out is not None:  # keep the real outlines of area features (e.g. pitches) in a second layer
         areas = f[f.geometry.geom_type.isin(["Polygon", "MultiPolygon"])].copy()
@@ -69,22 +101,25 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--aoi", required=True, choices=list(CONFIG["aois"]))
     ap.add_argument("--set", default="beach", choices=list(CONFIG["feature_sets"]))
+    ap.add_argument("--chunk-m", type=float, default=1000.0,
+                    help="query cell size in metres (default 1000; smaller if Overpass still times out)")
     args = ap.parse_args()
     fs = CONFIG["feature_sets"][args.set]
     out = RAW_DIR / "osm" / args.aoi
     out.mkdir(parents=True, exist_ok=True)
     ox.settings.use_cache = True
     ox.settings.cache_folder = str(RAW_DIR / "osm" / "_overpass_cache")
-    ox.settings.requests_timeout = 300
+    ox.settings.requests_timeout = 120  # small cells answer quickly; fail over to the next mirror sooner
     ox.settings.log_console = False
 
     bbox = anchor_bbox_lonlat(out, fs["anchor_names"], fs["pad_m"]) or aoi_bbox_lonlat(args.aoi)
-    print(f"[{args.set}] query bbox (lon/lat) {tuple(round(v, 5) for v in bbox)}")
+    print(f"[{args.set}] query bbox (lon/lat) {tuple(round(v, 5) for v in bbox)}, "
+          f"{len(chunk_bboxes(bbox, args.chunk_m))} cells of ~{args.chunk_m:.0f} m")
     areas = []
-    parts, failed = [fetch(bbox, fs["tags"], areas)], []
+    parts, failed = [fetch(bbox, fs["tags"], args.chunk_m, args.set, areas)], []
     if fs.get("optional_tags"):
         try:
-            parts.append(fetch(bbox, fs["optional_tags"]))
+            parts.append(fetch(bbox, fs["optional_tags"], args.chunk_m, args.set + ":optional"))
         except Exception as e:  # noqa: BLE001 - optional layer, the main set is still useful
             failed = list(fs["optional_tags"])
             print(f"[{args.set}] WARNING: optional tags {failed} failed ({str(e).splitlines()[0][:80]}); continuing")
