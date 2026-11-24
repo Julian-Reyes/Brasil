@@ -97,7 +97,9 @@
     "max_slope_weight": 10000.0,
     "clamp_min_height": false,
     "surface_offset_m": 0.06,
-    "terrain_sink_m": 0.10
+    "terrain_sink_m": 0.10,
+    "stepped_stairs": {"_doc": "highway=steps as solid treads along the solved profile (rio_geo/stairs.py) instead of a flat ribbon.",
+                       "enabled": true, "rise_m": 0.17}
   },
 
   "buildings": {
@@ -252,21 +254,17 @@
     "hubs": [
       {
         "name": "Vidigal central hub",
-        "_doc": "Idealised gameplay core in lower Vidigal (~42 m), inside the last hairpin of Av. Pres. Joao Goulart before Av. Niemeyer: the flattest field-sized ground next to the avenue (5.6 m relief over 50 x 40 m). Real neighbours: Teatro do Vidigal (Nos do Morro), schools, Pizzaria 3 Irmaos, Pastel do Ceu, Bar Lacubaco, the Mototaxi Cooper stand at the Niemeyer entrance. Commercial street on the upper leg, campinho in the hairpin, small praca in the bend.",
+        "_doc": "Idealised gameplay core in lower Vidigal (~40 m), inside the last hairpin of Av. Pres. Joao Goulart before Av. Niemeyer. Layout 2 (2026-11-24): the praca is the centre, on the saddle (~40.5 m) between the avenue's east leg and Caminho da Boa Vista, level with both streets at its east corners; the campinho sits 2 m below it to the west; five shops face the praca across the avenue, boteco + kiosk + mototaxi on its east side. Stairs (places.stairs) connect avenue, praca, campinho and Caminho. Real neighbours: Teatro do Vidigal, schools, Pizzaria 3 Irmaos, Pastel do Ceu, Bar Lacubaco, the Mototaxi Cooper stand at the Niemeyer entrance.",
         "center": [680815.0, 7456050.0],
         "rotation_deg": 19.0,
         "terraces": [
-          {
-            "name": "campinho",
-            "center": [680802.0, 7456038.0],
-            "size": [44.0, 22.0],
-            "pitch": [40.0, 19.0],
-            "blend_m": 1.0
-          },
+          {"name": "campinho", "center": [680802.0, 7456038.0], "size": [44.0, 22.0], "pitch": [40.0, 19.0], "blend_m": 1.0, "gates": [{"at": [680781.2, 7456030.8], "width": 3.0}]},
           {
             "name": "praca",
-            "center": [680857.0, 7456044.0],
-            "size": [18.0, 12.0],
+            "center": [680848.5, 7456049.0],
+            "size": [34.0, 22.0],
+            "rotation_deg": -3.0,
+            "z": 40.5,
             "blend_m": 1.0,
             "surface": "praca"
           }
@@ -274,53 +272,90 @@
         "elements": [
           {
             "type": "shop",
+            "label": "Padaria",
+            "marker": "shop_bakery",
+            "center": [680832.7, 7456078.0],
+            "size": [8.0, 7.0],
+            "rotation_deg": -5.0,
+            "levels": 2,
+            "awning": "M_AwningYellow",
+            "face": [680832.7, 7456058.0]
+          },
+          {
+            "type": "shop",
             "label": "Mercado",
             "marker": "shop_grocery",
-            "center": [680766.0, 7456058.0],
+            "center": [680841.7, 7456077.3],
             "size": [8.0, 7.0],
+            "rotation_deg": -5.0,
             "levels": 2,
             "awning": "M_AwningRed",
-            "face": [680762.0, 7456046.0]
+            "face": [680841.7, 7456057.3]
           },
           {
             "type": "shop",
             "label": "Farmacia",
             "marker": "shop_pharmacy",
-            "center": [680781.0, 7456064.0],
+            "center": [680850.2, 7456076.6],
             "size": [7.0, 7.0],
+            "rotation_deg": -5.0,
             "levels": 2,
             "awning": "M_AwningGreen",
-            "face": [680777.0, 7456052.0]
+            "face": [680850.2, 7456056.6]
           },
           {
             "type": "shop",
             "label": "Barbearia",
             "marker": "shop_barber",
-            "center": [680796.0, 7456070.0],
+            "center": [680857.7, 7456075.9],
             "size": [7.0, 7.0],
+            "rotation_deg": -5.0,
             "levels": 2,
             "awning": "M_AwningBlue",
-            "face": [680792.0, 7456058.0]
+            "face": [680857.7, 7456055.9]
           },
           {
             "type": "shop",
-            "label": "Padaria",
-            "marker": "shop_bakery",
-            "center": [680751.0, 7456052.0],
-            "size": [8.0, 6.0],
+            "label": "Lanchonete",
+            "marker": "shop_snack",
+            "center": [680865.2, 7456075.1],
+            "size": [7.0, 7.0],
+            "rotation_deg": -5.0,
             "levels": 2,
-            "awning": "M_AwningYellow",
-            "face": [680747.0, 7456040.0]
+            "awning": "M_AwningRed",
+            "face": [680865.2, 7456055.1]
           },
           {
             "type": "shop",
             "label": "Boteco",
             "marker": "shop_bar",
-            "center": [680833.0, 7456047.0],
+            "center": [680870.5, 7456048.0],
             "size": [6.0, 6.0],
+            "rotation_deg": -3.0,
             "levels": 1,
             "awning": "M_AwningRed",
-            "face": [680802.0, 7456038.0],
+            "face": [680848.5, 7456049.0],
+            "water_tank": false
+          },
+          {
+            "type": "kiosk",
+            "label": "Quiosque",
+            "marker": "shop_kiosk",
+            "center": [680858.0, 7456052.0],
+            "size": [3.5, 3.0],
+            "rotation_deg": -3.0,
+            "levels": 1,
+            "awning": "M_AwningGreen",
+            "face": [680840.0, 7456052.0],
+            "water_tank": false
+          },
+          {
+            "type": "stand",
+            "label": "Mototaxi",
+            "marker": "mototaxi_stand",
+            "center": [680873.5, 7456056.0],
+            "size": [4.0, 3.0],
+            "levels": 0,
             "water_tank": false
           },
           {
@@ -332,15 +367,6 @@
             "levels": 1,
             "face": [680806.0, 7456004.0],
             "awning": "M_AwningBlue"
-          },
-          {
-            "type": "stand",
-            "label": "Mototaxi",
-            "marker": "mototaxi_stand",
-            "center": [680872.0, 7456052.0],
-            "size": [4.0, 3.0],
-            "levels": 0,
-            "water_tank": false
           },
           {
             "type": "house",
@@ -360,6 +386,28 @@
             "levels": 2,
             "face": [680960.0, 7456040.0],
             "awning": "M_AwningYellow"
+          }
+        ],
+        "stairs": [
+          {
+            "name": "praca to campinho",
+            "path": [[680832.4, 7456048.5], [680821.9, 7456044.9]],
+            "width": 5.0
+          },
+          {
+            "name": "junction to praca",
+            "path": [[680835.0, 7456065.6], [680838.0, 7456054.0]],
+            "width": 3.0
+          },
+          {
+            "name": "Caminho da Boa Vista to campinho",
+            "path": [[680831.0, 7456032.3], [680824.5, 7456035.0]],
+            "width": 3.0
+          },
+          {
+            "name": "avenue to campinho",
+            "path": [[680785.4, 7456049.2], [680791.4, 7456047.2], [680802.7, 7456051.1], [680805.8, 7456049.9]],
+            "width": 2.2
           }
         ],
         "_alternative_site": "First site tried: centre [680495, 7455945] at ~100 m (real civic core: Associacao dos Moradores, clinic). Rejected: 47% cross-slope, the campinho needed 13 m walls and the street drops 15% along the praca.",

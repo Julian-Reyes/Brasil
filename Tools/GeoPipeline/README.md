@@ -159,4 +159,26 @@ All inside `build_area.py` unless noted; settings in `config/project.json`.
   walls, hub buildings and gameplay markers (`manifest.json -> markers`), plus `places/hub_preview_<n>.png`.
   One-time Unreal step: import `places/SM_PlacesPalette.obj` with materials into `/Game/Rio/Materials/Blockout/`.
 
+* **Stairs** (`rio_geo/stairs.py`): one tread generator for two uses. OSM `highway=steps` become solid treads
+  along their solved profile (`roads.stepped_stairs`, 17 cm risers) instead of a flat ribbon. Designed hub stairs
+  (`places.hubs[].stairs`: 2D path + width) take their end heights from what each end stands on (terrace,
+  road surface, terrain) after the road solve, get equal risers, a terrain ramp under them, stepped cheek walls
+  and retaining walls where they cut into the slope; fences / terrace walls open where a stair enters (and at
+  `gates`). Resolved profiles: `GeoData/exports/<aoi>/stairs.json`.
+* **Terrace edges:** after the road carve, terraces are re-flattened (the street blend used to pull hills into
+  the pitches), streets are cut out of OSM pitch aprons, and on uphill sides the 2 m-grid slope is moved behind
+  the retaining wall, which gets a flat top ledge.
+
 Vidigal order: `clip_osm.py`, `fetch_beach.py --set vidigal`, `build_area.py`, `build_places.py`, import.
+
+## 3D views without Unreal (`scripts/render_view.py`)
+
+A numpy z-buffer render of the exported OBJ tiles (flat shading, palette colours), for checking geometry on the
+MacBook:
+
+```sh
+.venv/bin/python scripts/render_view.py --aoi test_vidigal --target 680830 7456045 40 --eye-rel 235 32 75 \
+    --radius 80 --out /tmp/hub.png        # eye-rel = azimuth from north, elevation, distance (or --eye E N Z)
+```
+
+About 20-40 s for 10-20 k triangles; keep `--radius` small.

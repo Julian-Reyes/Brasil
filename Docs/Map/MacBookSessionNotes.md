@@ -466,3 +466,68 @@ Done on the laptop after the Mac mini hit the Overpass outage (see `HANDOFF.md` 
 
 On the mini: `uv pip install --python .venv/bin/python osmium`, download the pbf (or copy it from the laptop),
 then run `fetch_beach.py` for the three sets as in Sessions 3 and 4. It no longer needs Overpass.
+
+# Session 6 (2026-11-24, MacBook): hub praca, hub stairs, stepped OSM stairs
+
+Branch `macbook/vidigal-hub` (from `macbook/vidigal`). **Nothing seen in the editor.** Steps 1-3 of the plan in
+`HANDOFF.md`. Checked with the new pipeline 3D renderer (`scripts/render_view.py`); renders in
+`Docs/Map/screenshots/vidigal_hub_*.png`, `vidigal_osm_steps.png`. Spots to fly to: `UnrealDebugGuide.md` ->
+"Vidigal hub, layout 2".
+
+## Hub layout 2 (`config -> places.hubs[0]`)
+
+* **Praca** 34 x 22 m (was 18 x 12) at 40.5 m, centre E680848 N7456049, on the saddle between the avenue's east
+  leg (45.6 m at the Rua Nuno Alvares junction, 38.7 m at the bend) and Caminho da Boa Vista (38.4 -> 41.6 m):
+  level with the street at its NE and SE corners, retaining walls on the west (to the field) and along the
+  avenue's climbing west part. Trees every ~9 m around the edge, benches between, kiosk (new element type
+  `kiosk`), boteco on the east end facing the praca, mototaxi stand at the NE corner.
+* **Shops** moved from the avenue's upper leg to a row facing the praca across the avenue: Padaria, Mercado,
+  Farmacia, Barbearia, + new Lanchonete (`shop_snack`). The old shop sites went back to the real OSM buildings.
+* Campinho, player house, oficina, crew hangout unchanged. Per-item `rotation_deg` now allowed (praca and shops
+  follow the avenue, -3 / -5 deg, instead of the hub's 19 deg).
+
+## Stairs (`rio_geo/stairs.py`)
+
+* **Hub stairs** (`places.hubs[].stairs`, path + width): praca -> campinho (5 m wide, 11 x 17 cm), junction ->
+  praca (21 x 16 cm), Caminho da Boa Vista -> campinho (4 x 14 cm), avenue -> campinho (43 x 17 cm, runs down
+  along the field's north wall). End heights are resolved in `build_area.py` after the road solve (terrace /
+  road surface / terrain), the terrain is ramped under each stair, profiles go to `stairs.json`, and
+  `build_places.py` builds treads (`M_Stair`, new places palette entry: **re-import `SM_PlacesPalette.obj`**),
+  stepped cheek walls and retaining walls where the stair cuts into the slope. Campinho fence and walls open
+  only where a stair enters (last 2.5 m) and at the new west `gates` entry toward the player house.
+* **OSM `highway=steps`** are now solid treads along the solved profile instead of flat ribbons
+  (`roads.stepped_stairs`, 17 cm risers, hysteresis so near-flat runs do not flicker): Vidigal AOI 153 edges,
+  4.4 km, 7,244 steps; 14 edges have a tread under 25 cm (DSM-steep). Same `M_Steps` material, in the Roads tiles.
+
+## Terrace fixes (affect every area)
+
+1. **Hills inside pitches** (pre-existing since Session 4): the road carve ran after the terraces were flattened
+   and its blend zone pulled the ground back up inside them; the campinho had terrain from 36.7 to 45.0 m
+   poking through the pitch. Terraces are now re-flattened after the road carve (`reflatten_terraces`).
+2. **Streets cut out of pitch aprons:** OSM pitch `way/1449902183` (E681210 N7456549, 98 m) had its 2 m apron
+   over a service road 13 m lower (the slab floated over the road). Drivable corridors are subtracted from
+   terrace outlines first (`trim_terraces`).
+3. **Uphill edges:** on a 2 m grid one cell at the boundary is always a slope; it used to sit inside the terrace
+   as a wedge over the apron. The ring of nodes just outside a terrace is now lowered to the terrace level (not
+   under streets / paths), retaining walls sample the ground beyond it and get a 4 m top ledge covering the
+   trench. Where a stair runs along a terrace wall, the wall top follows the stair line instead.
+
+## Open / to check in the editor
+
+* Walkability of all stairs with the template character (step height 45 cm); flush ends.
+* Wall ledges next to streets: gaps or ledges floating above the road where the ground beyond the street is
+  higher (the ledge height is sampled 4.2 m out).
+* The long avenue -> campinho stair: the strip between it and the avenue is jagged terrain (2 m grid) behind
+  a retaining wall; may want a cleaner wall / planter later.
+* Steep OSM steps (tread < 25 cm): fine as blockout; flag any that are unwalkable.
+
+## Regression (all four test areas rebuilt on the laptop)
+
+`test_lagoa` (+ shore, places), `test_leblon_arpoador` (+ beach, shore, places), `test_leblon_vidigal` (+ places)
+all build. Street corridors trimmed out of 18 pitches (Lagoa) / 13 (beach area), terrace corrections < 1 m there;
+786 / 855 OSM steps converted. **Issue found:** the old `test_leblon_vidigal` area's ground is 20-35 m higher
+than `test_vidigal` at the same points (campinho 62.0 vs 38.7 m, a point 250 m NW 148.7 vs 112.8 m), so the hub
+stairs there come out absurd (127 steps at 9 cm run; `build_area.py` now logs a WARNING for that). The
+difference predates this session (its own ground model; `GeoData/raw/osm/test_leblon_vidigal/` has no
+`vidigal.gpkg` and an older clip, likely no favela infill subtracted). Treat `test_vidigal` as the Vidigal area;
+consider retiring `test_leblon_vidigal` or re-clipping it.

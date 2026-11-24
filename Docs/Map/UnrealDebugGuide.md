@@ -98,3 +98,34 @@ for the minimum z.
 
 My recommendation is A plus `clamp_min_height: true`, if it looks right in the editor. Then check Vidigal
 (`L_Rio_Test_LeblonVidigal`) as well: A changes every steep street.
+
+## Vidigal hub, layout 2 (2026-11-24): praca, stairs, terrace edges
+
+Walk these in `L_Rio_Test_Vidigal` after re-importing (third-person template character, default step height
+45 cm, so 17 cm risers must work; also try walking *up* each stair). Pipeline renders of the same spots:
+`Docs/Map/screenshots/vidigal_hub_3d.png`, `vidigal_hub_praca.png`, `vidigal_hub_long_stair.png`, `vidigal_osm_steps.png`.
+
+| What | UTM | UE (cm) | Pipeline z |
+|---|---|---|---|
+| Praca centre | E680848 N7456049 | (-365150, 495100, 4050) | 40.5 m |
+| Campinho centre | E680802 N7456038 | (-369800, 496200, 3870) | 38.7 m |
+| Stair praca -> campinho (5 m wide, 11 steps) | E680827 N7456047 | (-367300, 495300, 3960) | 40.5 -> 38.7 m |
+| Stair junction -> praca, top (21 steps) | E680835 N7456066 | (-366500, 493440, 4400) | 44.0 -> 40.5 m |
+| Stair avenue -> campinho, top (43 steps, along the north wall) | E680785 N7456049 | (-371460, 495080, 4600) | 46.0 -> 38.7 m |
+| same, bottom (enters the field) | E680806 N7456050 | (-369420, 495010, 3870) | |
+| Stair Caminho da Boa Vista -> campinho (4 steps) | E680828 N7456034 | (-367200, 496650, 3840) | 38.1 -> 38.7 m |
+| Shop row (Mercado) | E680842 N7456077 | (-365830, 492270, 4300) | |
+| OSM steps (beco stair, 39 m climb) | E680527 N7455816 | (-397300, 518400, 8800) | |
+| OSM pitch with a 10-13 m retaining wall over a service road | E681210 N7456549 | (-329050, 445100, 9810) | 98.1 m |
+
+What to look for:
+
+* Stairs: can the character walk up and down every one? Do the stair ends meet the street / praca / field flush
+  (no lip > 45 cm)? Cheek walls in the way at the top landing?
+* Terrain poking through stair treads (the terrain ramp is on a 2 m grid; the treads are solid 0.6 m+ blocks).
+* Campinho fence gaps: at the three stair landings and the west gate (toward the player house).
+* Terrace edges on the uphill side: wall top ledges (4 m wide) should hide the lowered ring behind the wall; on
+  the praca's avenue side they step down like terraced seating. Look for gaps between ledge and street.
+* OSM beco stairs: 7,244 steps in this AOI; 14 edges have a tread under 25 cm (very steep), see `report.json ->
+  stepped_stairs`. Collision is complex-as-simple like the roads.
+

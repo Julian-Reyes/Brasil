@@ -69,6 +69,12 @@ designed, curated version of the real place.
 **Praca in the hub (user, 2026-11-18):** the hub should be built around a proper praca (public square: paved,
 trees, benches, maybe a kiosk), the social heart, next to the campinho, with the shops and boteco around it.
 The current blockout's praca (18 x 12 m tucked in a road bend) is too small and off to the side.
+**Done 2026-11-24 (layout 2, MacBook):** the praca (34 x 22 m, 40.5 m) is now the centre, on the saddle between
+the avenue's east leg and Caminho da Boa Vista, level with both streets at its east corners. The campinho sits
+2 m below it to the west, joined by a 5 m wide stair. The five shops (padaria, mercado, farmacia, barbearia,
+lanchonete) face it across the avenue, with the boteco, a kiosk and the mototaxi stand on its east side. Stairs
+link the junction to the praca, the avenue and Caminho da Boa Vista to the campinho, and there's a gate toward the
+player's house. Still a stylised blockout, to be judged on the walk-around test.
 
 **Outside the hub: realistic Vidigal.** Dense informal housing on the real street / beco / stair network
 (procedural infill where OSM is under-mapped), and Vidigal's real iconic places where they exist.

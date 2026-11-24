@@ -20,6 +20,7 @@ from shapely import wkt
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from rio_geo import places as plc  # noqa: E402
+from rio_geo import stairs as st  # noqa: E402
 from rio_geo import terrain as ter  # noqa: E402
 from rio_geo.beach import TiledMesh  # noqa: E402
 from rio_geo.common import CONFIG, EXPORTS_DIR, PROJECT_DIR, RAW_DIR, aoi_bbox_utm, utm_to_ue, write_metadata  # noqa: E402
@@ -31,7 +32,7 @@ PALETTE = {
     "M_Shop": (0.88, 0.80, 0.62), "M_Workshop": (0.55, 0.57, 0.60), "M_PlayerHouse": (0.30, 0.55, 0.75),
     "M_Hangout": (0.70, 0.30, 0.45), "M_Parapet": (0.75, 0.73, 0.70), "M_Awning": (0.85, 0.85, 0.85),
     "M_AwningRed": (0.80, 0.15, 0.12), "M_AwningGreen": (0.15, 0.55, 0.25), "M_AwningYellow": (0.95, 0.78, 0.15),
-    "M_AwningBlue": (0.15, 0.35, 0.75),
+    "M_AwningBlue": (0.15, 0.35, 0.75), "M_Stair": (0.70, 0.68, 0.64),
 }
 # also used here, defined elsewhere: M_WaterTank (blockout palette), M_Bench / M_TreeTrunk / M_TreeCrown (shore palette)
 
@@ -58,11 +59,28 @@ def main():
             t["pitch"] = wkt.loads(t["pitch"]) if t.get("pitch") else None
             terr.append(t)
     elems = plc.hub_elements(cfg, bbox)
+    stairs = []
+    if (exp / "stairs.json").exists():  # designed stairs, resolved by build_area.py
+        for s in json.loads((exp / "stairs.json").read_text()):
+            s["profile"] = np.asarray(s["profile"])
+            s["corridor"] = st.corridor(s["profile"][:, :2], s["width"])
+            stairs.append(s)
     terrain = ter.load_terrain_from_manifest(manifest, bbox, aoi_cfg["terrain_grid_m"])
     tm = TiledMesh(bbox, aoi_cfg["tile_size_m"], MeshBuilder, clip=True)
-    stats = plc.build(terr, elems, terrain, tm, cfg)
+    streets = None
+    if stairs and (exp / "road_graph_source.json").exists():  # carriageways: no stair side walls on them
+        from shapely.geometry import LineString  # noqa: PLC0415
+        import shapely  # noqa: PLC0415
+        from rio_geo.roads import CLASS_INFO  # noqa: PLC0415
+        edges = json.loads((exp / "road_graph_source.json").read_text())["edges"]
+        streets = shapely.union_all([LineString(np.asarray(e["points"])[:, :2]).buffer(e["width_m"] / 2, cap_style="flat")
+                                     for e in edges if CLASS_INFO.get(e["class"], (0, ""))[1] in ("major", "minor")])
+    stats = plc.build(terr, elems, terrain, tm, cfg, stairs=stairs, streets=streets)
     log(f"terraces {stats['terraces']} ({stats['pitches']} with pitches), retaining walls ~{stats['walls_m']:.0f} m, "
-        f"hub buildings {stats['hub_buildings']}")
+        f"hub buildings {stats['hub_buildings']}, stairs {len(stats['stairs'])}")
+    for s in stats["stairs"]:
+        log(f"  stair {s['name'].split(': ')[-1]}: {s['steps']} steps, rise {s['rise_m'] * 100:.0f} cm, "
+            f"tread {s['tread_m']} m, ends {s['ends']}")
 
     # named real places: feature sets (points), their areas, and named buildings
     wanted = {k: v for k, v in cfg["landmarks"].items() if not k.startswith("_")}

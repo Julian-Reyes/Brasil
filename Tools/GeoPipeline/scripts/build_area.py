@@ -32,6 +32,7 @@ from rio_geo import favela as fav  # noqa: E402
 from rio_geo import places as plc  # noqa: E402
 from rio_geo.beach import box as box_mesh  # noqa: E402
 from rio_geo import roads as rd  # noqa: E402
+from rio_geo import stairs as st  # noqa: E402
 from rio_geo import terrain as ter  # noqa: E402
 from rio_geo.common import (CONFIG, EXPORTS_DIR, PROCESSED_DIR, PROJECT_DIR, PROJECTED_CRS, RAW_DIR,  # noqa: E402
                             aoi_bbox_utm, utm_to_ue, write_metadata)
@@ -135,8 +136,9 @@ def main():
     pitch_areas = gpd.GeoDataFrame(pd.concat(pitch_areas, ignore_index=True), crs=PROJECTED_CRS) if pitch_areas else None
     terr = plc.terraces(pcfg, pitch_areas, bbox)
     elems = plc.hub_elements(pcfg, bbox)
-    if terr or elems:
-        zone = plc.clear_zones(terr, elems, pcfg)
+    hub_stairs = plc.hub_stairs(pcfg, bbox)
+    if terr or elems or hub_stairs:
+        zone = plc.clear_zones(terr, elems, pcfg, hub_stairs)
         hit = buildings.geometry.intersects(zone)
         log(f"places: {len(terr)} terraces ({sum(t['kind'] == 'pitch' for t in terr)} pitches), {len(elems)} hub "
             f"elements; removed {int(hit.sum())} houses from them")
@@ -209,6 +211,14 @@ def main():
                         for b in sorted(water_bodies, key=lambda b: -b["area_m2"])[:5]))
 
     if terr:
+        # streets win over terraces: an OSM pitch apron overlapping a carriageway at another level would put the
+        # flat slab (and, after re-flattening, the ground) over the street
+        drv, _ = rd.prepare_edges(edges, bbox, rcfg)
+        drv = drv[drv["group"].isin(["major", "minor"])]
+        trimmed = plc.trim_terraces(terr, shapely.union_all(
+            [g.buffer(w / 2 + 0.5, cap_style="flat") for g, w in zip(drv.geometry, drv["width_m"])]))
+        if trimmed:
+            log(f"places: trimmed street corridors out of {len(trimmed)} terraces ({', '.join(trimmed[:4])})")
         plc.apply_terraces(ground, terr, pcfg["pitch_terraces"]["min_z_m"])
         (out / "terraces.json").write_text(json.dumps(
             [{k: (v.wkt if hasattr(v, "wkt") else v) for k, v in t.items()} for t in terr], indent=1))
@@ -236,6 +246,43 @@ def main():
         terrain = ter.Heightfield(ground.west, ground.south, step, ter.carve_roads(ground, samples)[0])
         log(f"  tier {'/'.join(tier)}: {int(mask.sum())} edges solved")
     log(f"roads: {len(surf)} surface edges, {len(tunnels)} tunnel edges skipped, {len(samples)} corridor samples")
+
+    if terr:
+        keep = shapely.union_all([g.buffer(w / 2 + 0.5, cap_style="flat") for g, w in zip(surf.geometry, surf["width_m"])])
+        fix, fix_name = plc.reflatten_terraces(terrain, terr, keep)
+        log(f"places: terraces re-flattened after the road carve (largest correction {fix:.1f} m, {fix_name})")
+
+    # ---------------- designed stairs (hub): end heights from terrace / road surface / terrain, ramp under them
+    if hub_stairs:
+        lines = list(surf.geometry)
+        road_tree = STRtree(lines)
+
+        def road_z(x, y):
+            p = Point(x, y)
+            best = None
+            for k in road_tree.query(p.buffer(12.0)):
+                r = surf.iloc[k]
+                d = lines[k].distance(p)
+                if d <= r["width_m"] / 2 + 0.3 and (best is None or d < best[0]):
+                    prof = profiles[k]
+                    j = int(np.argmin(np.hypot(prof[:, 0] - x, prof[:, 1] - y)))
+                    best = (d, float(prof[j, 2]) + rcfg["surface_offset_m"])
+            return None if best is None else best[1]
+
+        plc.resolve_stairs(hub_stairs, terr, terrain, road_z, pcfg)
+        (out / "stairs.json").write_text(json.dumps(
+            [{"name": s["name"], "hub": s["hub"], "width": s["width"], "rise": s["rise"], "steps": s["steps"],
+              "ends": s["ends"], "min_run_m": s["min_run_m"], "profile": np.round(s["profile"], 3).tolist()}
+             for s in hub_stairs], indent=1))
+        log("hub stairs: " + "; ".join(f"{s['name'].split(': ')[-1]} {s['ends'][0]['z']:.1f}->{s['ends'][1]['z']:.1f} m, "
+                                       f"{s['steps']} steps of {s['rise'] * 100:.0f} cm, run {s['min_run_m']} m"
+                                       for s in hub_stairs))
+        steep = [s["name"].split(": ")[-1] for s in hub_stairs if s["min_run_m"] < 0.22]
+        if steep:
+            log(f"WARNING: hub stairs too steep to walk (run < 22 cm per step): {steep}. The hub layout is designed "
+                "for test_vidigal's terrain; check the terrace levels in this AOI.")
+    elif (out / "stairs.json").exists():
+        (out / "stairs.json").unlink()
 
     # ---------------- verification metrics
     grades = []
@@ -275,14 +322,31 @@ def main():
                 v, t = ter.water_surface_triangles(piece, b["level_m"], (pe, pn))
                 tiles[(i, j)]["Water"].add("M_Sea", v, t, [(0.0, 0.0, 1.0)] * len(v))
 
+    scfg = rcfg.get("stepped_stairs", {"enabled": False})
+    step_stats = {"edges": 0, "steps": 0, "length_m": 0.0, "steep_treads_under_25cm": 0}
     for (_, r), prof in zip(surf.iterrows(), profiles):
         lift = rcfg["surface_offset_m"] + r["rank"] * 0.004
+        if r["group"] == "steps" and scfg["enabled"] and not r["is_bridge"]:
+            blocks, info = st.step_blocks(prof + [0.0, 0.0, lift], r["width_m"], scfg["rise_m"])
+            for v, t in blocks:
+                v = np.asarray(v, dtype=float)
+                key = tile_of(*v[:, :2].mean(axis=0))
+                tiles[key]["Roads"].add("M_Steps", v - [W + key[0] * tile_m, S + key[1] * tile_m, 0.0], t)
+            step_stats["edges"] += 1
+            step_stats["steps"] += info["steps"]
+            step_stats["length_m"] += r.geometry.length
+            if info["min_tread_m"] is not None and info["min_tread_m"] < 0.25:
+                step_stats["steep_treads_under_25cm"] += 1
+            continue
         for key, run in rd.split_by_tile(prof, tile_of):
             pe, pn = W + key[0] * tile_m, S + key[1] * tile_m
             local = run - [pe, pn, 0.0]
             v, t, nrm = rd.ribbon(local, r["width_m"] / 2, lift)
             tiles[key]["Roads"].add(rd.MATERIAL[r["group"]], v, t, nrm)
 
+    if step_stats["edges"]:
+        log(f"stepped stairs: {step_stats['edges']} steps edges, {step_stats['length_m'] / 1000:.1f} km, "
+            f"{step_stats['steps']} steps; {step_stats['steep_treads_under_25cm']} edges with a tread < 25 cm")
     # Building/road conflicts: footprints overlapping a drivable carriageway indicate a width or data error.
     drivable = surf[surf["group"].isin(["major", "minor"]) & ~surf["is_bridge"]]
     carriageways = [g.buffer(w / 2, cap_style="flat") for g, w in zip(drivable.geometry, drivable["width_m"])]
@@ -379,6 +443,7 @@ def main():
         "tunnels_skipped": graph["tunnels_not_built"],
         "buildings": {"placed": placed, "height_sources": height_sources, "carriageway_conflicts": conflicts},
         "shore_cap": shore_cap,
+        "stepped_stairs": {k: (round(v, 1) if isinstance(v, float) else v) for k, v in step_stats.items()},
         "landmark_peaks": [p for p in peaks_report if p.get("status") != "outside DEM window"],
         "water_bodies": [{k: b[k] for k in ("name", "kind", "level_m", "level_source", "area_m2")}
                          for b in water_bodies],

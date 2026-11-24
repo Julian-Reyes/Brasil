@@ -2,6 +2,13 @@
 
 Read this first, then `README.md`, `DesignPriorities.md` and `Tools/GeoPipeline/README.md`.
 
+## Latest (2026-11-24, MacBook, branch `macbook/vidigal-hub`)
+
+Hub layout 2 + stairs + terrace edge fixes, see `MacBookSessionNotes.md` -> Session 6. On the mini, after the
+fetch steps below: rebuild all four test areas (build_area + beach / shore / places as in Sessions 3-4), re-import
+`places/SM_PlacesPalette.obj` with materials (new `M_Stair`), then import and walk the hub. New laptop tool:
+`scripts/render_view.py` (3D views of the exports without Unreal).
+
 ## START HERE (2026-11-24, Mac mini): Overpass is down, build an offline OSM source next
 
 Branch: still `macbook/vidigal` (latest commit pushed from the Mac mini). `main` is untouched and still at the
@@ -92,16 +99,14 @@ Vidigal), plus the one-time palette imports with materials into `/Game/Rio/Mater
 * Never modify the Third Person template. Keep the 1:1 SOURCE levels separate from the compressed playable map.
 * Hero area: the Leblon to Arpoador beach (see `DesignPriorities.md`).
 
-## Next session (agreed 2026-11-18, not started)
+## Vidigal plan (agreed 2026-11-18)
 
-Branch from `macbook/vidigal` (all three MacBook branches are pushed; vidigal contains the others).
+Steps 1-3 **done on 2026-11-24** on branch `macbook/vidigal-hub` (`MacBookSessionNotes.md` -> Session 6; spots to
+walk in `UnrealDebugGuide.md` -> "Vidigal hub, layout 2"). Next on the MacBook: step 4.
 
-1. **Hub praca:** make it the centre of the hub, bigger, next to the campinho, shops / boteco / kiosk around it.
-   The hub stays in lower Vidigal where regular residents live (see `DesignPriorities.md`).
-2. **Hub stairs:** walkable stair meshes connecting street, campinho and praca (right now only slopes and
-   retaining walls; the field may not be reachable on foot).
-3. **Stairways everywhere:** turn the mapped `highway=steps` (7.4 km in Vidigal) from flat ribbons into stepped
-   meshes.
+1. ~~Hub praca~~: 34 x 22 m praca at the centre, shops facing it, boteco / kiosk / mototaxi on its east side.
+2. ~~Hub stairs~~: four designed stairs (street, praca, campinho) plus a gate; fence and walls open at them.
+3. ~~Stairways everywhere~~: OSM `highway=steps` are solid treads (4.4 km / 7,244 steps in the Vidigal AOI).
 4. **Less grid-like infill:** varied lot sizes / heights, merged blocks, colour variation (painted houses).
 5. **Details:** house doors / entrances, overhead wire tangles, narrow car access, lookout points.
 6. Later, after the walk-around test: one or two signature escadarias (e.g. a long painted stair from the hub
