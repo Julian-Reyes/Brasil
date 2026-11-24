@@ -2,14 +2,69 @@
 
 Read this first, then `README.md`, `DesignPriorities.md` and `Tools/GeoPipeline/README.md`.
 
-## Latest (2026-11-24, MacBook, branch `macbook/vidigal-hub`)
+## START HERE ON THE MAC MINI (written 2026-11-24 on the MacBook)
 
-Hub layout 2 + stairs + terrace edge fixes, see `MacBookSessionNotes.md` -> Session 6. On the mini, after the
-fetch steps below: rebuild all four test areas (build_area + beach / shore / places as in Sessions 3-4), re-import
-`places/SM_PlacesPalette.obj` with materials (new `M_Stair`), then import and walk the hub. New laptop tool:
-`scripts/render_view.py` (3D views of the exports without Unreal).
+Branch: **`macbook/vidigal-hub`** (contains everything: `macbook/vidigal` + the offline OSM source + the hub
+work). `main` is still untouched. Nothing below has been opened in Unreal yet; the laptop checked it with
+pipeline renders only (`Docs/Map/screenshots/vidigal_hub_3d.png`, `vidigal_hub_praca.png`,
+`vidigal_hub_long_stair.png`, `vidigal_osm_steps.png`, `vidigal_hub_preview.png`).
 
-## START HERE (2026-11-24, Mac mini): Overpass is down, build an offline OSM source next
+What changed (details: `MacBookSessionNotes.md` -> Session 5 and Session 6):
+
+* `fetch_beach.py` reads a local OSM extract (no Overpass needed). Output identical to the old Overpass files.
+* Vidigal hub layout 2: big praca (34 x 22 m) at the centre, shops facing it, boteco / kiosk / mototaxi.
+* Hub stairs (4) + a field gate; OSM `highway=steps` are now solid stepped meshes everywhere.
+* Terrace fixes in every area: no more hills inside pitches, streets cut out of pitch aprons, retaining walls
+  with top ledges on uphill sides.
+* New tool `scripts/render_view.py` (3D views of the exports; handy on the mini too).
+
+### Checklist
+
+```sh
+git fetch && git checkout macbook/vidigal-hub && git pull
+cd Tools/GeoPipeline
+uv pip install --python .venv/bin/python -r requirements.txt          # adds osmium (pyosmium)
+mkdir -p ../../GeoData/raw/osm/extract && curl -fL -o ../../GeoData/raw/osm/extract/RiodeJaneiro.osm.pbf \
+  https://download.bbbike.org/osm/bbbike/RiodeJaneiro/RiodeJaneiro.osm.pbf
+P=.venv/bin/python
+$P scripts/fetch_beach.py --aoi test_leblon_arpoador --set beach
+$P scripts/fetch_beach.py --aoi test_lagoa --set lagoa
+$P scripts/fetch_beach.py --aoi test_vidigal --set vidigal
+cp ../../GeoData/raw/osm/test_lagoa/lagoa.gpkg ../../GeoData/raw/osm/test_leblon_arpoador/
+# builds (each area: build_area first, then its extra steps)
+$P scripts/build_area.py --aoi test_vidigal && $P scripts/build_places.py --aoi test_vidigal
+$P scripts/build_area.py --aoi test_lagoa && $P scripts/build_shore.py --aoi test_lagoa && $P scripts/build_places.py --aoi test_lagoa
+$P scripts/build_area.py --aoi test_leblon_arpoador && $P scripts/build_beach.py --aoi test_leblon_arpoador \
+  && $P scripts/build_shore.py --aoi test_leblon_arpoador && $P scripts/build_places.py --aoi test_leblon_arpoador
+```
+
+Expected log lines for Vidigal: `hub stairs: praca to campinho 40.5->38.7 m, 11 steps ...`, `stepped stairs: 153
+steps edges, 4.4 km, 7244 steps`. If the mini's numbers differ a lot, suspect the laptop's older geo packages
+(`MacBookSessionNotes.md` -> "Laptop setup").
+
+In the editor (one time, with materials, into `/Game/Rio/Materials/Blockout/`): re-import
+`SM_BlockoutPalette.obj` (has `M_WaterTank`), import `beach/SM_BeachPalette.obj`, `shore/SM_ShorePalette.obj`,
+and **re-import `places/SM_PlacesPalette.obj`** (new `M_Stair`). Then for each level (`L_Rio_Test_Vidigal`,
+`L_Rio_Test_Lagoa`, `L_Rio_Test_LeblonArpoador`):
+`$P unreal/ue_remote.py unreal/import_area.py '{"aoi": "<aoi>"}'`. Place the Vidigal PlayerStart at
+`manifest.json -> markers -> player_home`.
+
+### What to test in the editor
+
+Fly to the spots in **`UnrealDebugGuide.md` -> "Vidigal hub, layout 2"** (UTM + UE coordinates) and:
+
+1. Walk up and down all four hub stairs and a few beco stairs with the template character (17 cm risers; step
+   height 45 cm). Any lip at the stair ends, cheek wall in the way, terrain poking through treads?
+2. Campinho: flat (no hills), fence gaps at the 3 stair landings + west gate, retaining walls.
+3. Praca: size and feel from street level, shops across the avenue, does it read as the social heart?
+4. Wall top ledges next to streets: gaps, or ledges floating above the road.
+5. Report back anything off; layout changes go in `config/project.json -> places.hubs[0]`, then re-run
+   `build_area.py` + `build_places.py`.
+
+Known: the old `test_leblon_vidigal` area has a 20-35 m higher ground model (pre-existing); the hub stairs are
+unwalkable there. Use `test_vidigal`.
+
+## Earlier (2026-11-24, Mac mini): Overpass was down; offline OSM source (now done, see above)
 
 Branch: still `macbook/vidigal` (latest commit pushed from the Mac mini). `main` is untouched and still at the
 2026-11-17 handoff; all MacBook work plus the items below are on `macbook/vidigal` only.
