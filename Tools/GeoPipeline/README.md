@@ -152,7 +152,12 @@ All inside `build_area.py` unless noted; settings in `config/project.json`.
   (the 30 m DEM cuts steep granite summits short: Irmao Maior 382 vs 539 m).
 * **Favela infill** (`favela_infill`, `rio_geo/favela.py`): procedural houses in under-mapped favela polygons up to
   a coverage target, keeping streets / becos / stairs clear; runs before the ground model, which subtracts the
-  infill footprints like mapped buildings. Water tanks on some roofs (`M_WaterTank`, blockout palette).
+  infill footprints like mapped buildings. Houses first line every street / beco / stair (aligned, varied widths
+  from a small / medium / wide mix, mostly wall to wall, occasional passages), then fill the interior along the
+  contours. `house_style` gives 2-4 storeys (+1 on car streets, smooth spatial variation, ~3% 5-7 storey
+  blocks), a facade material (bare brick `M_BuildingInformal`, render `M_HouseRender`, painted `M_HousePaint*`,
+  blockout palette) and laje extras (parapet, small roof room, water tank); OSM-mapped favela houses get the
+  same looks. Around a hub: `infill_max_levels`, and `places.hub_clear_margin_m` keeps designed spaces open.
 * **Places** (`places`, `rio_geo/places.py`): flat terraces under OSM pitch outlines (`fetch_beach.py --set
   <set>` writes them to the `areas` layer) and under designed hubs (`places.hubs`, UTM layout); houses and becos
   inside are removed. Then run `scripts/build_places.py --aoi <aoi>` for pitch surfaces, goals, fences, retaining

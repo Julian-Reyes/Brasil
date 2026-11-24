@@ -35,13 +35,18 @@ from rio_geo import roads as rd  # noqa: E402
 from rio_geo import stairs as st  # noqa: E402
 from rio_geo import terrain as ter  # noqa: E402
 from rio_geo.common import (CONFIG, EXPORTS_DIR, PROCESSED_DIR, PROJECT_DIR, PROJECTED_CRS, RAW_DIR,  # noqa: E402
-                            aoi_bbox_utm, utm_to_ue, write_metadata)
+                            aoi_bbox_utm, stable_unit, utm_to_ue, write_metadata)
 from rio_geo.meshio import MeshBuilder, write_mtl  # noqa: E402
 
 PALETTE = {
     "M_Terrain": (0.30, 0.42, 0.22), "M_RoadMajor": (0.06, 0.06, 0.07), "M_RoadMinor": (0.16, 0.16, 0.17),
     "M_Path": (0.62, 0.55, 0.42), "M_Steps": (0.80, 0.45, 0.15), "M_BuildingFormal": (0.72, 0.72, 0.70),
     "M_BuildingInformal": (0.78, 0.40, 0.25), "M_Sea": (0.05, 0.20, 0.40), "M_WaterTank": (0.10, 0.35, 0.70),
+    # favela facades (rio_geo/favela.py house_style): cement render and painted houses
+    "M_HouseRender": (0.62, 0.61, 0.58), "M_HousePaintWhite": (0.88, 0.86, 0.80),
+    "M_HousePaintYellow": (0.88, 0.76, 0.44), "M_HousePaintBlue": (0.48, 0.62, 0.76),
+    "M_HousePaintGreen": (0.56, 0.68, 0.50), "M_HousePaintPink": (0.84, 0.60, 0.62),
+    "M_HousePaintTeal": (0.34, 0.60, 0.58),
 }
 GEN_TAG = "RioGenerated"
 
@@ -99,6 +104,12 @@ def main():
     fcfg = CONFIG["favela_infill"]
     infill_report, infill = [], gpd.GeoDataFrame(geometry=[], crs=PROJECTED_CRS)
     buildings["water_tank"] = False
+    buildings["material"], buildings["parapet"], buildings["roof_room"] = None, False, False
+    if fcfg["enabled"] and fcfg.get("style_mapped_informal"):  # mapped favela houses get the same looks
+        for i in np.flatnonzero(buildings["informal"].to_numpy()):
+            sty = fav.house_style(("osm", str(buildings.at[i, "osmid"]) if "osmid" in buildings else i), fcfg)
+            for k in ("material", "parapet", "roof_room", "water_tank"):
+                buildings.at[i, k] = sty[k]
     if fcfg["enabled"] and len(favelas):
         circ, _ = rd.prepare_edges(edges, bbox, rcfg)
         zones = [(str(r.get("name")), r.geometry) for _, r in favelas.iterrows()]
@@ -107,8 +118,8 @@ def main():
         for hub in CONFIG["places"]["hubs"]:
             if hub.get("infill_radius_m") and box(*bbox).contains(Point(hub["center"])):
                 zone = Point(hub["center"]).buffer(hub["infill_radius_m"]).difference(favela_union or Point(0, 0))
-                zones.append((f"{hub['name']} surroundings", zone))
-        in_zone = buildings.geometry.centroid.within(shapely.union_all([z for _, z in zones]))
+                zones.append((f"{hub['name']} surroundings", zone, {"max_levels": hub.get("infill_max_levels")}))
+        in_zone = buildings.geometry.centroid.within(shapely.union_all([z[1] for z in zones]))
         houses, infill_report = fav.generate_infill(zones, buildings[buildings["informal"] | in_zone],
                                                     circ, dsm, dsm_tf, bbox, fcfg)
         if houses:
@@ -118,7 +129,8 @@ def main():
             infill["informal"], infill["height_src"] = True, "infill"
             infill["osmid"] = "infill:" + infill["lot"]
             buildings = gpd.GeoDataFrame(pd.concat([buildings, infill[["geometry", "height", "height_m", "informal",
-                                                                       "height_src", "osmid", "water_tank"]]],
+                                                                       "height_src", "osmid", "water_tank", "material",
+                                                                       "parapet", "roof_room"]]],
                                                    ignore_index=True), crs=PROJECTED_CRS)
         log("favela infill: " + "; ".join(f"{r['favela']}: +{r['added']} houses, coverage "
                                           f"{r['mapped_coverage']:.0%} -> {r.get('coverage_after', r['mapped_coverage']):.0%}"
@@ -367,11 +379,32 @@ def main():
             mesh = bld.extrude(poly, zg.min() - bcfg["foundation_sink_m"], zg.max() + h, pivot)
             if mesh is None:
                 continue
-            tiles[key]["Buildings"].add("M_BuildingInformal" if r["informal"] else "M_BuildingFormal", *mesh)
+            mat = r.get("material")
+            mat = mat if isinstance(mat, str) else ("M_BuildingInformal" if r["informal"] else "M_BuildingFormal")
+            tiles[key]["Buildings"].add(mat, *mesh)
+            top = zg.max() + h
+            tank_top, tank_at = top, None
+            skey = (str(r.get("osmid")), round(poly.centroid.x, 1))
+            if r.get("parapet") == True:  # noqa: E712 - low wall around the laje
+                ring = poly.difference(poly.buffer(-0.15, join_style="mitre"))
+                if ring.geom_type == "Polygon":
+                    pm = bld.extrude(ring, top, top + fcfg["roof"]["parapet_m"], pivot)
+                    if pm is not None:
+                        tiles[key]["Buildings"].add(mat, *pm)
+            if r.get("roof_room") == True:  # noqa: E712 - puxadinho: small room on the laje
+                room = fav.roof_room(poly, skey, fcfg)
+                rm = bld.extrude(room, top - 0.1, top + fcfg["roof"]["room_m"], pivot)
+                if rm is not None:
+                    tiles[key]["Buildings"].add(mat, *rm)
+                    tank_top, tank_at = top + fcfg["roof"]["room_m"], room.representative_point()
             if r.get("water_tank") == True:  # noqa: E712 - numpy bool or NaN; blue caixa d'agua on the laje (flat roof)
-                c = poly.representative_point()
-                top = zg.max() + h
-                tank = bbox_box_mesh((c.x - pivot[0], c.y - pivot[1]), 1.2, top, top + 1.1)
+                if tank_at is None:  # toward a corner, not dead centre
+                    cc = np.asarray(poly.centroid.coords[0])
+                    vs = np.asarray(poly.exterior.coords)[:-1]
+                    v = vs[int(stable_unit(skey + ("tank_corner",)) * len(vs))]
+                    p = cc + (v - cc) * 0.55
+                    tank_at = Point(*p) if poly.buffer(-0.7).contains(Point(*p)) else poly.representative_point()
+                tank = bbox_box_mesh((tank_at.x - pivot[0], tank_at.y - pivot[1]), 1.2, tank_top, tank_top + 1.1)
                 tiles[key]["Buildings"].add("M_WaterTank", *tank)
             height_sources[src] = height_sources.get(src, 0) + 1
             placed += 1

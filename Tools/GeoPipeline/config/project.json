@@ -233,6 +233,7 @@
   "places": {
     "_doc": "Terraces for sports pitches (OSM outlines) and designed hubs, their meshes and gameplay markers (rio_geo/places.py; terraces in build_area.py, meshes in scripts/build_places.py). Hub layouts are UTM metres: move them here after a walk-around test.",
     "clear_margin_m": 2.0,
+    "hub_clear_margin_m": 4.0,
     "pitch_terraces": {
       "enabled": true,
       "apron_m": 2.0,
@@ -411,7 +412,8 @@
           }
         ],
         "_alternative_site": "First site tried: centre [680495, 7455945] at ~100 m (real civic core: Associacao dos Moradores, clinic). Rejected: 47% cross-slope, the campinho needed 13 m walls and the street drops 15% along the praca.",
-        "infill_radius_m": 110.0
+        "infill_radius_m": 110.0,
+        "infill_max_levels": 3
       }
     ],
     "landmarks": {
@@ -439,22 +441,51 @@
   },
 
   "favela_infill": {
-    "_doc": "Procedural informal houses in under-mapped favelas (rio_geo/favela.py), before the ground model. Only adds up to `coverage` of each favela polygon (mapped buildings count); keeps every road/beco/stair/path clear.",
+    "_doc": "Procedural informal houses in under-mapped favelas (rio_geo/favela.py), before the ground model. Only adds up to `coverage` of each favela polygon (mapped buildings count); keeps every road/beco/stair/path clear. Frontage houses line every street / beco / stair first, then the interior is filled contour-aligned.",
     "enabled": true,
     "coverage": 0.55,
-    "lot_m": 7.0,
-    "house_w_m": [4.5, 6.4],
-    "house_d_m": [4.5, 6.8],
-    "jitter_m": 0.8,
+    "sizes": {
+      "_doc": "w = along the street (or contour), d = depth; shares sum to 1. 'wide' = merged / bigger houses.",
+      "small": {"share": 0.42, "w": [3.5, 5.0], "d": [4.5, 7.0]},
+      "medium": {"share": 0.43, "w": [5.0, 7.0], "d": [5.5, 8.0]},
+      "wide": {"share": 0.15, "w": [7.0, 11.0], "d": [6.0, 9.5]}
+    },
+    "frontage": {
+      "_doc": "Houses lining streets, becos and stairs: setback 0 for setback_zero_share of them, else within setback_m; mostly wall to wall (gap_m), sometimes a narrow passage between two houses.",
+      "enabled": true,
+      "setback_zero_share": 0.5,
+      "setback_m": [0.2, 1.2],
+      "gap_m": [0.2, 0.35],
+      "passage_share": 0.12,
+      "passage_m": [0.9, 1.6]
+    },
+    "interior_grid_m": 3.0,
     "min_footprint_m2": 12.0,
-    "empty_lot_fraction": 0.08,
-    "levels": [2, 5],
-    "levels_skew": 1.4,
+    "empty_lot_fraction": 0.06,
+    "levels": [2, 4],
+    "levels_skew": 1.3,
+    "noise_m": 45.0,
+    "noise_levels": 1,
+    "street_bonus_share": 0.5,
+    "towers": {"_doc": "a few taller 'predios'", "share": 0.03, "levels": [5, 7], "min_footprint_m2": 30.0},
+    "colours": {
+      "_doc": "facade material shares (the rest stays M_BuildingInformal, bare brick); materials in the blockout palette",
+      "M_BuildingInformal": 0.52,
+      "M_HouseRender": 0.24,
+      "M_HousePaintWhite": 0.08,
+      "M_HousePaintYellow": 0.04,
+      "M_HousePaintBlue": 0.04,
+      "M_HousePaintGreen": 0.03,
+      "M_HousePaintPink": 0.03,
+      "M_HousePaintTeal": 0.02
+    },
+    "roof": {"_doc": "laje extras", "parapet_share": 0.35, "parapet_m": 0.9, "room_share": 0.2, "room_scale": [0.4, 0.6], "room_m": 2.6},
+    "style_mapped_informal": true,
     "water_tank_fraction": 0.35,
     "clear_road_m": 1.0,
     "clear_path_m": 0.6,
     "gap_to_mapped_m": 0.6,
-    "gap_between_m": 0.3
+    "gap_between_m": 0.25
   },
 
   "landmark_peaks": {

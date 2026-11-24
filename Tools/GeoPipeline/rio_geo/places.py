@@ -132,7 +132,8 @@ def hub_elements(cfg, bbox):
 
 def clear_zones(terr, elems, cfg, stairs=()):
     """Union of everything that must be free of procedural / mapped houses."""
-    parts = [t["polygon"].buffer(cfg["clear_margin_m"]) for t in terr]
+    hub_m = cfg.get("hub_clear_margin_m", cfg["clear_margin_m"])  # designed spaces keep a wider open edge
+    parts = [t["polygon"].buffer(hub_m if t["source"] == "hub" else cfg["clear_margin_m"]) for t in terr]
     parts += [e["polygon"].buffer(cfg["clear_margin_m"]) for e in elems]
     parts += [s["corridor"].buffer(1.0) for s in stairs]
     return shapely.union_all(parts) if parts else shapely.Polygon()

@@ -4,8 +4,8 @@ Read this first, then `README.md`, `DesignPriorities.md` and `Tools/GeoPipeline/
 
 ## START HERE ON THE MAC MINI (written 2026-11-24 on the MacBook)
 
-Branch: **`macbook/vidigal-hub`** (contains everything: `macbook/vidigal` + the offline OSM source + the hub
-work). `main` is still untouched. Nothing below has been opened in Unreal yet; the laptop checked it with
+Branch: **`macbook/vidigal-infill`** (contains everything: `macbook/vidigal` + the offline OSM source + the hub
+work in `macbook/vidigal-hub` + the new favela infill). `main` is still untouched. Nothing below has been opened in Unreal yet; the laptop checked it with
 pipeline renders only (`Docs/Map/screenshots/vidigal_hub_3d.png`, `vidigal_hub_praca.png`,
 `vidigal_hub_long_stair.png`, `vidigal_osm_steps.png`, `vidigal_hub_preview.png`).
 
@@ -17,11 +17,13 @@ What changed (details: `MacBookSessionNotes.md` -> Session 5 and Session 6):
 * Terrace fixes in every area: no more hills inside pitches, streets cut out of pitch aprons, retaining walls
   with top ledges on uphill sides.
 * New tool `scripts/render_view.py` (3D views of the exports; handy on the mini too).
+* Favela infill v2 (Session 7): houses line the streets / becos / stairs, mixed sizes and heights, painted /
+  rendered / brick facades, parapets, roof rooms. Before / after renders: `screenshots/vidigal_infill_*.png`.
 
 ### Checklist
 
 ```sh
-git fetch && git checkout macbook/vidigal-hub && git pull
+git fetch && git checkout macbook/vidigal-infill && git pull
 cd Tools/GeoPipeline
 uv pip install --python .venv/bin/python -r requirements.txt          # adds osmium (pyosmium)
 mkdir -p ../../GeoData/raw/osm/extract && curl -fL -o ../../GeoData/raw/osm/extract/RiodeJaneiro.osm.pbf \
@@ -39,11 +41,11 @@ $P scripts/build_area.py --aoi test_leblon_arpoador && $P scripts/build_beach.py
 ```
 
 Expected log lines for Vidigal: `hub stairs: praca to campinho 40.5->38.7 m, 11 steps ...`, `stepped stairs: 153
-steps edges, 4.4 km, 7244 steps`. If the mini's numbers differ a lot, suspect the laptop's older geo packages
+steps edges, 4.4 km, 7244 steps`, `favela infill: Rocinha: +5717 houses ... Vidigal: +5170 houses, coverage 8% -> 55%`. If the mini's numbers differ a lot, suspect the laptop's older geo packages
 (`MacBookSessionNotes.md` -> "Laptop setup").
 
 In the editor (one time, with materials, into `/Game/Rio/Materials/Blockout/`): re-import
-`SM_BlockoutPalette.obj` (has `M_WaterTank`), import `beach/SM_BeachPalette.obj`, `shore/SM_ShorePalette.obj`,
+`SM_BlockoutPalette.obj` (has `M_WaterTank` and the new house facades `M_HouseRender`, `M_HousePaint*`), import `beach/SM_BeachPalette.obj`, `shore/SM_ShorePalette.obj`,
 and **re-import `places/SM_PlacesPalette.obj`** (new `M_Stair`). Then for each level (`L_Rio_Test_Vidigal`,
 `L_Rio_Test_Lagoa`, `L_Rio_Test_LeblonArpoador`):
 `$P unreal/ue_remote.py unreal/import_area.py '{"aoi": "<aoi>"}'`. Place the Vidigal PlayerStart at
@@ -58,6 +60,8 @@ Fly to the spots in **`UnrealDebugGuide.md` -> "Vidigal hub, layout 2"** (UTM + 
 2. Campinho: flat (no hills), fence gaps at the 3 stair landings + west gate, retaining walls.
 3. Praca: size and feel from street level, shops across the avenue, does it read as the social heart?
 4. Wall top ledges next to streets: gaps, or ledges floating above the road.
+4b. Favela infill from the street and from Leblon (spots: `UnrealDebugGuide.md` -> "Vidigal housing infill v2"):
+    does it read as a favela, any house blocking a beco / stair, frame rate.
 5. Report back anything off; layout changes go in `config/project.json -> places.hubs[0]`, then re-run
    `build_area.py` + `build_places.py`.
 
@@ -157,12 +161,13 @@ Vidigal), plus the one-time palette imports with materials into `/Game/Rio/Mater
 ## Vidigal plan (agreed 2026-11-18)
 
 Steps 1-3 **done on 2026-11-24** on branch `macbook/vidigal-hub` (`MacBookSessionNotes.md` -> Session 6; spots to
-walk in `UnrealDebugGuide.md` -> "Vidigal hub, layout 2"). Next on the MacBook: step 4.
+walk in `UnrealDebugGuide.md` -> "Vidigal hub, layout 2"). Step 4 **done** on `macbook/vidigal-infill`
+(Session 7). Next on the MacBook: step 5.
 
 1. ~~Hub praca~~: 34 x 22 m praca at the centre, shops facing it, boteco / kiosk / mototaxi on its east side.
 2. ~~Hub stairs~~: four designed stairs (street, praca, campinho) plus a gate; fence and walls open at them.
 3. ~~Stairways everywhere~~: OSM `highway=steps` are solid treads (4.4 km / 7,244 steps in the Vidigal AOI).
-4. **Less grid-like infill:** varied lot sizes / heights, merged blocks, colour variation (painted houses).
+4. ~~Less grid-like infill~~ (done, Session 7). Was: varied lot sizes / heights, merged blocks, colour variation (painted houses).
 5. **Details:** house doors / entrances, overhead wire tangles, narrow car access, lookout points.
 6. Later, after the walk-around test: one or two signature escadarias (e.g. a long painted stair from the hub
    toward the top).

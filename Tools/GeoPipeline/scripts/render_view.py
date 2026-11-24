@@ -31,6 +31,11 @@ KINDS = ("Terrain", "Roads", "Buildings", "Places", "Beach", "Shore", "Water")
 def palette():
     cols = dict(COLOURS)
     try:
+        from build_area import PALETTE as B  # noqa: PLC0415
+        cols.update({k: v for k, v in B.items() if k.startswith("M_House")})
+    except Exception:  # noqa: BLE001 - optional
+        pass
+    try:
         from build_places import PALETTE as P  # noqa: PLC0415
         cols.update(P)
     except Exception:  # noqa: BLE001 - optional

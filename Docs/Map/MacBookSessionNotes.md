@@ -531,3 +531,33 @@ stairs there come out absurd (127 steps at 9 cm run; `build_area.py` now logs a 
 difference predates this session (its own ground model; `GeoData/raw/osm/test_leblon_vidigal/` has no
 `vidigal.gpkg` and an older clip, likely no favela infill subtracted). Treat `test_vidigal` as the Vidigal area;
 consider retiring `test_leblon_vidigal` or re-clipping it.
+
+# Session 7 (2026-11-24, MacBook): favela infill v2 (less grid-like)
+
+Branch `macbook/vidigal-infill` (from `macbook/vidigal-hub`). Step 4 of the Vidigal plan. **Nothing seen in the
+editor.** Before / after renders (same viewpoints): `Docs/Map/screenshots/vidigal_infill_before_*.png`,
+`vidigal_infill_after_*.png` (+ `_after_top.png`); spots in `UnrealDebugGuide.md` -> "Vidigal housing infill v2".
+
+What changed (`rio_geo/favela.py`, config `favela_infill`, rewritten):
+
+* **Placement:** frontage first: houses line both sides of every street, beco and stair in the zone, aligned
+  with it, from a size mix (small 3.5-5 m / medium 5-7 m / wide merged 7-11 m along the street; 42 / 43 / 15%),
+  half of them at the kerb, the rest set back up to 1.2 m, wall to wall (0.2-0.35 m) with a 0.9-1.6 m passage
+  12% of the time. Then the interior is filled from a jittered 3 m candidate grid, contour-aligned. Trimmed
+  against the free space and neighbours; slivers under 2.5 m dropped. The old 7 m lot grid is gone.
+* **Heights:** 2-4 storeys base (skewed low), +-1 from a smooth 45 m noise field (neighbouring blocks differ),
+  +1 for half the houses on car streets, ~3% 5-7 storey "predios" (footprint >= 30 m2), slivers <= 3.
+  Result: ~86% at 2-4 storeys, ~6% at 5. Around the hub: max 3, no towers (`infill_max_levels`).
+* **Looks:** facade material per house: bare brick 52%, grey render 24%, painted 24% (white, yellow, blue,
+  green, pink, teal) -> **new blockout palette materials `M_HouseRender`, `M_HousePaint*`: re-import
+  `SM_BlockoutPalette.obj` with materials.** Laje extras: parapet 35%, small roof room (puxadinho) 20%, water
+  tank 35% (on the roof room if there is one, otherwise toward a corner instead of dead centre). OSM-mapped
+  favela houses get the same looks (`style_mapped_informal`).
+* **Hub:** designed hub spaces keep a 4 m house-free margin (`places.hub_clear_margin_m`; a tall house had
+  squeezed into the strip between the avenue and the praca).
+
+Numbers (test_vidigal): Vidigal +5,170 houses, now reaches 55% coverage (was 49%: the 7 m grid ran out of
+lots); Rocinha +5,717; Chacara do Ceu +382; hub surroundings +242. 2.49 M triangles total (was 2.37 M).
+
+Regression: `test_lagoa` (+ shore, places) and `test_leblon_arpoador` (+ beach, shore, places) rebuild. Pavao-
+Pavaozinho gets +119 houses in the Lagoa area and +512 in the beach area (was +526), both now at 55% coverage.

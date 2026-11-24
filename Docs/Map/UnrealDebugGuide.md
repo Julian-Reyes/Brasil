@@ -129,3 +129,18 @@ What to look for:
 * OSM beco stairs: 7,244 steps in this AOI; 14 edges have a tread under 25 cm (very steep), see `report.json ->
   stepped_stairs`. Collision is complex-as-simple like the roads.
 
+## Vidigal housing infill v2 (2026-11-24)
+
+Same viewpoints as the before / after renders in `Docs/Map/screenshots/vidigal_infill_{before,after}_*.png`:
+
+| What | UTM | UE (cm) |
+|---|---|---|
+| Aerial target (upper Vidigal) | E680480 N7455930 | (-402000, 507000, 10000) |
+| Street view: Av. Pres. Joao Goulart, eye height | E680432 N7455978 | (-406800, 502150, 9090) |
+| Beco stair, eye height | E680549 N7455975 | (-395110, 502520, 7850) |
+
+What to look for: does it read as a favela from the street and from Leblon? Houses blocking becos or stairs
+(they must keep 0.6 m clear), floating or buried house bases on steep slopes, parapets / roof rooms / tanks
+intersecting, colour mix (bare brick vs render vs painted), triangle count / frame rate (Buildings tiles grew
+~5%).
+
