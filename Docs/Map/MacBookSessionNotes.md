@@ -444,3 +444,25 @@ roads: I used a small check against the road graph while laying it out.
 * Lower Vidigal is outside OSM's favela polygon; only the hub's 110 m surroundings got infill there.
 * Infill edges at the AOI border: favela parts outside the AOI are not infilled, so the ground model there keeps
   roof signal (only matters for other AOIs that overlap).
+
+# Session 5 (2026-11-24, MacBook): offline OSM source for `fetch_beach.py`
+
+Done on the laptop after the Mac mini hit the Overpass outage (see `HANDOFF.md` -> START HERE). No editor work.
+
+* New `rio_geo/osm_pbf.py` + `fetch_beach.py --source auto|pbf|overpass` (default `auto`: local extract if present
+  and covering the bbox, else Overpass). Extract: BBBike `RiodeJaneiro.osm.pbf` (38 MB, data 2026-11-21, extent
+  lon -43.58..-42.92, lat -23.08..-22.58, covers `full`) in `GeoData/raw/osm/extract/`. Download command in
+  `Tools/GeoPipeline/README.md` -> "Offline OSM extract". New dependency `osmium==4.3.2` (prebuilt wheel, installed
+  on the laptop with `uv pip install --python .venv/bin/python osmium`, no override needed).
+* Re-ran all three sets from the pbf (~35 s each): `beach` 88, `lagoa` 1,439, `vidigal` 118 features, and copied
+  `lagoa.gpkg` into `test_leblon_arpoador/`. Compared with the 2026-11-18 Overpass files: **identical** OSM ids,
+  columns, points (0 m shift) and areas.
+* One real difference: `beach.gpkg` (22 outlines) and `lagoa.gpkg` (112) now have the `areas` layer. The 11-18 files
+  predate it (Session 4 added it). So `build_area.py` / `build_places.py` for `test_leblon_arpoador` and
+  `test_lagoa` will now also see pitch outlines there (flat terraces under pitches). Expected, but new: check the
+  beach-side pitches (futevolei / volleyball on the sand) do not get odd terraces.
+* Known gap vs Overpass (documented in `osm_pbf.py`): a multipolygon whose member ways all lie outside the bbox
+  while the polygon covers it is missed. Not the case for any current set.
+
+On the mini: `uv pip install --python .venv/bin/python osmium`, download the pbf (or copy it from the laptop),
+then run `fetch_beach.py` for the three sets as in Sessions 3 and 4. It no longer needs Overpass.

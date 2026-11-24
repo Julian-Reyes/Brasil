@@ -50,6 +50,25 @@ AOIs are defined in `config/project.json` (`full`, `test_leblon_vidigal`, `test_
 `scripts/clip_osm.py --aoi <aoi>` derives an AOI's raw OSM inputs from the already-downloaded `full` extract,
 so a new test area needs no Overpass request.
 
+## Offline OSM extract (instead of Overpass)
+
+`fetch_beach.py` (all feature sets) reads a local extract when it exists (`--source auto`, the default;
+`--source pbf|overpass` to force one). The public Overpass servers were all down on 2026-11-24.
+
+```sh
+mkdir -p ../../GeoData/raw/osm/extract
+curl -fL -o ../../GeoData/raw/osm/extract/RiodeJaneiro.osm.pbf \
+  https://download.bbbike.org/osm/bbbike/RiodeJaneiro/RiodeJaneiro.osm.pbf     # BBBike, ~38 MB, covers every AOI
+.venv/bin/python scripts/fetch_beach.py --aoi test_vidigal --set vidigal       # ~35 s per set on the 2017 MacBook
+```
+
+`rio_geo/osm_pbf.py` clips the pbf to the set's bbox with pyosmium (objects with the wanted tag keys, plus every
+node / member way they reference) into `GeoData/raw/osm/_pbf_cache/<set>.osm`, then `osmnx.features_from_xml`
+applies the exact tags and the bbox, so the `.gpkg` is the same as from Overpass (checked 2026-11-24 for beach,
+lagoa and vidigal: identical OSM ids, columns and geometry). `<set>_metadata.json -> source` says which was used.
+Fallback extract if BBBike stops covering the area: Geofabrik `south-america/brazil/sudeste-latest.osm.pbf` (864 MB).
+`fetch_osm.py` (roads, buildings, reference) still uses Overpass only.
+
 ## Unreal import
 
 Primary path: full editor Python over PythonScriptPlugin **Remote Execution** (Project Settings > Plugins >
@@ -84,7 +103,7 @@ Sand, ciclovia, calcadao, kiosks, Postos, palm rows and the canal mouths (Jardim
 Albuquerque) for the Leblon to Arpoador beach. Order for an AOI that contains the beach:
 
 ```sh
-.venv/bin/python scripts/fetch_beach.py --aoi test_leblon_arpoador   # once; Overpass, cached
+.venv/bin/python scripts/fetch_beach.py --aoi test_leblon_arpoador   # once; local pbf or Overpass
 .venv/bin/python scripts/build_area.py  --aoi test_leblon_arpoador   # rewrites manifest.json
 .venv/bin/python scripts/build_beach.py --aoi test_leblon_arpoador   # appends kind "Beach" to manifest.json
 .venv/bin/python unreal/ue_remote.py unreal/import_area.py '{"aoi": "test_leblon_arpoador"}'

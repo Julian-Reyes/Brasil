@@ -48,6 +48,21 @@ Shortcut if the MacBook still has them from 2026-11-18: copy
 `GeoData/raw/osm/test_leblon_arpoador/beach.gpkg`, `test_lagoa/lagoa.gpkg`, `test_vidigal/vidigal.gpkg` to the
 mini (AirDrop / USB), which unblocks the mini without any of the above.
 
+### DONE 2026-11-24 on the MacBook: offline source works (`MacBookSessionNotes.md` -> Session 5)
+
+`fetch_beach.py --source auto` (default) now reads `GeoData/raw/osm/extract/RiodeJaneiro.osm.pbf` with pyosmium;
+results identical to the 11-18 Overpass files. On the mini:
+
+```sh
+cd Tools/GeoPipeline && git pull && uv pip install --python .venv/bin/python -r requirements.txt   # adds osmium
+mkdir -p ../../GeoData/raw/osm/extract && curl -fL -o ../../GeoData/raw/osm/extract/RiodeJaneiro.osm.pbf \
+  https://download.bbbike.org/osm/bbbike/RiodeJaneiro/RiodeJaneiro.osm.pbf
+.venv/bin/python scripts/fetch_beach.py --aoi test_leblon_arpoador --set beach
+.venv/bin/python scripts/fetch_beach.py --aoi test_lagoa --set lagoa
+.venv/bin/python scripts/fetch_beach.py --aoi test_vidigal --set vidigal
+cp ../../GeoData/raw/osm/test_lagoa/lagoa.gpkg ../../GeoData/raw/osm/test_leblon_arpoador/
+```
+
 ### Then, on the Mac mini (needs the editor)
 
 Builds and imports exactly as in `MacBookSessionNotes.md` (Session 3 order for beach + Lagoa, Session 4 for

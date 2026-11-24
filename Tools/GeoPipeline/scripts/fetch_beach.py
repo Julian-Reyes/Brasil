@@ -5,7 +5,11 @@ Feature sets are defined in config `feature_sets`:
   lagoa  kiosks, benches, trees, pitches, piers around Lagoa Rodrigo de Freitas -> lagoa.gpkg
 
 Only a strip around the set's anchor polygons (from reference.gpkg) is queried: whole-AOI queries time out on
-the public Overpass servers. `optional_tags` (e.g. trees, which can be thousands of nodes) are fetched in a
+the public Overpass servers.
+
+Sources (`--source`): `pbf` reads the local extract GeoData/raw/osm/extract/RiodeJaneiro.osm.pbf (rio_geo/osm_pbf.py,
+no network); `overpass` queries the public servers in ~1 km cells; `auto` (default) uses the pbf when it exists and
+covers the bbox, else Overpass. `optional_tags` (e.g. trees, which can be thousands of nodes) are fetched in a
 separate request whose failure is logged but not fatal.
 
 Output: GeoData/raw/osm/<aoi>/<set>.gpkg: layer 'features' (project CRS, one point per feature; areas are reduced
@@ -14,6 +18,7 @@ of the polygon features, e.g. pitches).
 
 Usage:  .venv/bin/python scripts/fetch_beach.py --aoi test_leblon_arpoador            (set beach)
         .venv/bin/python scripts/fetch_beach.py --aoi test_lagoa --set lagoa
+        .venv/bin/python scripts/fetch_beach.py --aoi test_vidigal --set vidigal --source pbf
 """
 import argparse
 import math
@@ -30,6 +35,7 @@ from rio_geo.common import (CONFIG, PROJECTED_CRS, RAW_DIR, aoi_bbox_lonlat, lon
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fetch_osm import flatten_for_gpkg, with_overpass_retry  # noqa: E402
+from rio_geo import osm_pbf  # noqa: E402
 
 KEEP = ["name", "emergency", "shop", "amenity", "natural", "leisure", "man_made", "sport", "species",
         "genus", "leaf_type", "ref", "operator", "tower:type", "backrest", "denotation"]
@@ -79,8 +85,23 @@ def fetch_chunked(bbox, tags, chunk_m, label):
     return gpd.GeoDataFrame(f[~f.index.duplicated()], crs=parts[0].crs)
 
 
-def fetch(bbox, tags, chunk_m, label, polygons_out=None):
-    f = fetch_chunked(bbox, tags, chunk_m, label)
+def fetch_pbf(pbf, bbox, tags, label):
+    """Same result shape as fetch_chunked, read from a local extract instead of Overpass."""
+    from shapely.geometry import box
+    xml = RAW_DIR / "osm" / "_pbf_cache" / f"{label.replace(':', '_')}.osm"
+    nn, nw, nr = osm_pbf.clip_to_xml(pbf, bbox, tags.keys(), xml)
+    print(f"[{label}] pbf clip: {nn} nodes, {nw} ways, {nr} relations with keys {sorted(tags)}", flush=True)
+    try:
+        f = ox.features_from_xml(xml, polygon=box(*bbox), tags=tags)
+    except ox._errors.InsufficientResponseError:
+        f = None
+    if f is None or not len(f):
+        raise ox._errors.InsufficientResponseError(f"no features for {list(tags)} in {bbox} ({pbf.name})")
+    return f
+
+
+def fetch(bbox, tags, chunk_m, label, polygons_out=None, pbf=None):
+    f = fetch_pbf(pbf, bbox, tags, label) if pbf else fetch_chunked(bbox, tags, chunk_m, label)
     f = f.to_crs(PROJECTED_CRS)
     if polygons_out is not None:  # keep the real outlines of area features (e.g. pitches) in a second layer
         areas = f[f.geometry.geom_type.isin(["Polygon", "MultiPolygon"])].copy()
@@ -103,6 +124,9 @@ def main():
     ap.add_argument("--set", default="beach", choices=list(CONFIG["feature_sets"]))
     ap.add_argument("--chunk-m", type=float, default=1000.0,
                     help="query cell size in metres (default 1000; smaller if Overpass still times out)")
+    ap.add_argument("--source", default="auto", choices=["auto", "pbf", "overpass"],
+                    help="auto (default): local pbf extract if present and covering the bbox, else Overpass")
+    ap.add_argument("--pbf", type=Path, default=osm_pbf.DEFAULT_PBF, help="local .osm.pbf extract")
     args = ap.parse_args()
     fs = CONFIG["feature_sets"][args.set]
     out = RAW_DIR / "osm" / args.aoi
@@ -113,13 +137,20 @@ def main():
     ox.settings.log_console = False
 
     bbox = anchor_bbox_lonlat(out, fs["anchor_names"], fs["pad_m"]) or aoi_bbox_lonlat(args.aoi)
-    print(f"[{args.set}] query bbox (lon/lat) {tuple(round(v, 5) for v in bbox)}, "
-          f"{len(chunk_bboxes(bbox, args.chunk_m))} cells of ~{args.chunk_m:.0f} m")
+    pbf = None
+    if args.source in ("auto", "pbf"):
+        if args.pbf.exists() and osm_pbf.covers(args.pbf, bbox):
+            pbf = args.pbf
+        elif args.source == "pbf":
+            sys.exit(f"[{args.set}] {args.pbf} missing or does not cover {bbox}; download it (see rio_geo/osm_pbf.py)")
+    source = f"pbf:{pbf.name}" if pbf else "overpass"
+    print(f"[{args.set}] query bbox (lon/lat) {tuple(round(v, 5) for v in bbox)}, source {source}"
+          + ("" if pbf else f", {len(chunk_bboxes(bbox, args.chunk_m))} cells of ~{args.chunk_m:.0f} m"))
     areas = []
-    parts, failed = [fetch(bbox, fs["tags"], args.chunk_m, args.set, areas)], []
+    parts, failed = [fetch(bbox, fs["tags"], args.chunk_m, args.set, areas, pbf)], []
     if fs.get("optional_tags"):
         try:
-            parts.append(fetch(bbox, fs["optional_tags"], args.chunk_m, args.set + ":optional"))
+            parts.append(fetch(bbox, fs["optional_tags"], args.chunk_m, args.set + ":optional", pbf=pbf))
         except Exception as e:  # noqa: BLE001 - optional layer, the main set is still useful
             failed = list(fs["optional_tags"])
             print(f"[{args.set}] WARNING: optional tags {failed} failed ({str(e).splitlines()[0][:80]}); continuing")
@@ -130,7 +161,7 @@ def main():
         flatten_for_gpkg(gpd.GeoDataFrame(areas[0], crs=PROJECTED_CRS)).to_file(out / f"{args.set}.gpkg", layer="areas",
                                                                              driver="GPKG")
     print(f"[{args.set}] {len(f)} features -> {out / (args.set + '.gpkg')}")
-    write_metadata(out / f"{args.set}_metadata.json", aoi=args.aoi, set=args.set, bbox_lonlat=bbox, crs=PROJECTED_CRS,
+    write_metadata(out / f"{args.set}_metadata.json", aoi=args.aoi, set=args.set, bbox_lonlat=bbox, crs=PROJECTED_CRS, source=source,
                    tags=fs["tags"], optional_tags=fs.get("optional_tags"), optional_failed=failed, count=len(f),
                    license=CONFIG["osm"]["license"], attribution=CONFIG["osm"]["attribution"])
 
