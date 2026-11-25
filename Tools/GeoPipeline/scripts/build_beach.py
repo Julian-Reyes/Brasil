@@ -118,7 +118,7 @@ def main():
                        "location_cm": list(utm_to_ue(pe, pn, 0.0)), "tile": [i, j], "pivot_utm": [float(pe), float(pn)],
                        "materials": sorted(mb.parts), "triangles": mb.triangle_count, "collision": "complex_as_simple"})
     manifest["actors"] = [a for a in manifest["actors"] if a["kind"] != "Beach"] + actors
-    manifest["markers"] = [{"name": p["name"], "kind": "Posto", "utm": p["xyz"], "location_cm": list(utm_to_ue(*p["xyz"])),
+    manifest["markers"] = [m for m in manifest.get("markers", []) if m.get("kind") != "Posto"] + [{"name": p["name"], "kind": "Posto", "utm": p["xyz"], "location_cm": list(utm_to_ue(*p["xyz"])),
                             "source": p["source"]} for p in postos]
     (exp / "manifest.json").write_text(json.dumps(manifest, indent=2))
     saved = PROJECT_DIR / "Saved" / "RioPipeline" / f"{args.aoi}_manifest.json"

@@ -35,7 +35,7 @@ def palette():
         cols.update({k: v for k, v in B.items() if k.startswith("M_House")})
     except Exception:  # noqa: BLE001 - optional
         pass
-    for mod in ("build_places", "build_details"):
+    for mod in ("build_places", "build_details", "build_beach", "build_shore"):
         try:
             cols.update(__import__(mod).PALETTE)
         except Exception:  # noqa: BLE001 - optional

@@ -749,3 +749,22 @@ anywhere:
 * `test_leblon_arpoador` (Pavao-Pavaozinho): 11 turnarounds (45 houses); 51 poles, 14 raised, 12 added, 8 removed.
   Before this session, 27 of its 55 poles had no power line.
 * `test_leblon_vidigal`: 10 turnarounds (48 houses); 194 poles, 1 removed.
+
+# Session 11 (2026-11-25, MacBook): beach area look check
+
+Rendered the Leblon / Ipanema beachfront with `render_view.py` (no Unreal). Two small fixes:
+
+* `build_beach.py` replaced **all** manifest markers with the Posto markers, so running it after
+  `build_places.py` / `build_details.py` dropped hub and lookout markers. It now replaces only `kind == "Posto"`.
+  The handoff build order (beach before places / details) was not affected.
+* `render_view.py` now loads the beach and shore palettes (sand, ciclovia, palms, kiosks and Postos rendered in a
+  fallback colour before).
+
+Laptop-only state: the 2026-11-25 rebuild of `test_leblon_arpoador` (for the Pavao-Pavaozinho turnarounds) ran
+`build_area` / `build_places` / `build_details` only, so its manifest had no Beach / Shore actors. Re-ran beach,
+shore, places and details. On the mini, follow the full checklist order in `HANDOFF.md`.
+
+What the beach area has now: grey extruded buildings (12,104; 73% with OSM heights, flat roofs, one colour);
+sand, red ciclovia, grey calcadao, 290 palms, 23 kiosks, Postos 7-12. Missing: umbrellas / chairs / barracas,
+footvolley nets, building facades, wave paving, Copacabana (outside every AOI; only the Arpoador edge is in).
+Seen in the renders: terrain poking through the sand near the waterline and around Posto 9 (known issue).
