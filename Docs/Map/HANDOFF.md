@@ -4,8 +4,9 @@ Read this first, then `README.md`, `DesignPriorities.md` and `Tools/GeoPipeline/
 
 ## START HERE ON THE MAC MINI (written 2026-11-24, updated 2026-11-25 on the MacBook)
 
-Branch: **`macbook/vidigal-details`** (contains everything: `macbook/vidigal` + the offline OSM source + the hub
-work in `macbook/vidigal-hub` + the favela infill in `macbook/vidigal-infill` + the step 5 street details).
+Branch: **`macbook/vidigal-escadarias`** (contains everything: `macbook/vidigal` + the offline OSM source + the hub
+work in `macbook/vidigal-hub` + the favela infill in `macbook/vidigal-infill` + the step 5 street details in
+`macbook/vidigal-details` + the step 6 signature escadarias).
 `main` is still untouched. Nothing below has been opened in Unreal yet; the laptop checked it with
 pipeline renders only (`Docs/Map/screenshots/vidigal_hub_3d.png`, `vidigal_hub_praca.png`,
 `vidigal_hub_long_stair.png`, `vidigal_osm_steps.png`, `vidigal_hub_preview.png`).
@@ -23,11 +24,15 @@ What changed (details: `MacBookSessionNotes.md` -> Session 5 and Session 6):
 * Street details (Session 8): doors on every favela house, poles + overhead wire tangles, one-car lanes inside
   the favela, four lookouts (mirantes). New script `build_details.py`, new kinds `Details` / `Wires`. Renders:
   `screenshots/vidigal_details_*.png`.
+* Signature escadarias (Session 9): two long, 3 m wide painted stairs (Escadaria do Niemeyer: Av. Niemeyer to
+  below the hub; Escadaria Padre Ítalo: up to 138 m) with landings, a handrail, lamps, benches, murals and three
+  bars. Built by `build_area.py` (route, corridor, landings) + `build_details.py` (meshes). Renders:
+  `screenshots/vidigal_escadaria*.png`.
 
 ### Checklist
 
 ```sh
-git fetch && git checkout macbook/vidigal-details && git pull
+git fetch && git checkout macbook/vidigal-escadarias && git pull
 cd Tools/GeoPipeline
 uv pip install --python .venv/bin/python -r requirements.txt          # adds osmium (pyosmium)
 mkdir -p ../../GeoData/raw/osm/extract && curl -fL -o ../../GeoData/raw/osm/extract/RiodeJaneiro.osm.pbf \
@@ -45,8 +50,10 @@ $P scripts/build_area.py --aoi test_leblon_arpoador && $P scripts/build_beach.py
 $P scripts/build_details.py --aoi test_lagoa && $P scripts/build_details.py --aoi test_leblon_arpoador   # Pavao-Pavaozinho
 ```
 
-Expected log lines for Vidigal: `hub stairs: praca to campinho 40.5->38.7 m, 11 steps ...`, `stepped stairs: 153
-steps edges, 4.4 km, 7244 steps`, `favela lanes narrowed: living_street 0.6 km, residential 7.1 km, service 1.6 km`, `favela infill: Rocinha: +5700
+Expected log lines for Vidigal: `hub stairs: praca to campinho 40.5->38.7 m, 11 steps ...`, `escadaria Escadaria do
+Niemeyer: 0.8 -> 28.8 m, 6 edges, 8 landings`, `escadaria Escadaria Padre Ítalo: 22.2 -> 138.4 m, 15 edges, 34
+landings`, `stepped stairs: 159 steps edges, 4.7 km, 6685 steps` (the escadarias' treads are counted by
+`build_details.py`, not here), `favela lanes narrowed: living_street 0.6 km, residential 7.1 km, service 1.6 km`, `favela infill: Rocinha: +5700
 houses ... Vidigal: +5141 houses, coverage 8% -> 55%`, `lookouts: {... 'built': 4, 'houses_removed': 7}`, and
 from `build_details.py`: `doors: {'doors': 12155, 'shutters': 487, ...}`, `poles and wires: {'poles': 344, ...}`. If the mini's numbers differ a lot, suspect the laptop's older geo packages
 (`MacBookSessionNotes.md` -> "Laptop setup").
@@ -54,7 +61,7 @@ from `build_details.py`: `doors: {'doors': 12155, 'shutters': 487, ...}`, `poles
 In the editor (one time, with materials, into `/Game/Rio/Materials/Blockout/`): re-import
 `SM_BlockoutPalette.obj` (has `M_WaterTank` and the new house facades `M_HouseRender`, `M_HousePaint*`), import `beach/SM_BeachPalette.obj`, `shore/SM_ShorePalette.obj`,
 **re-import `places/SM_PlacesPalette.obj`** (new `M_Stair`), and **import `details/SM_DetailsPalette.obj`** (new:
-doors, shutter, pole, transformer, wire, lookout deck, railing). Then for each level (`L_Rio_Test_Vidigal`,
+doors, shutter, pole, transformer, wire, lookout deck, railing, and the escadaria paints, lamp, murals, bar). Then for each level (`L_Rio_Test_Vidigal`,
 `L_Rio_Test_Lagoa`, `L_Rio_Test_LeblonArpoador`):
 `$P unreal/ue_remote.py unreal/import_area.py '{"aoi": "<aoi>"}'`. Place the Vidigal PlayerStart at
 `manifest.json -> markers -> player_home`.
@@ -73,6 +80,9 @@ Fly to the spots in **`UnrealDebugGuide.md` -> "Vidigal hub, layout 2"** (UTM + 
 4c. Street details (spots: `UnrealDebugGuide.md` -> "Vidigal street details"): door heights on slopes, drive a
     car up the 4.2 m lanes, poles off the carriageway, wires clear of heads (no collision), how thin cables look
     at distance, the four lookouts' views.
+4d. Escadarias (spots: `UnrealDebugGuide.md` -> "Vidigal signature escadarias"): walk both end to end (17 cm
+    risers, landings, the steeper steps next to a landing), the handrail and lamps in the way or not, bars and
+    tables blocking the stair, does each read as a landmark from the street / from a distance.
 5. Report back anything off; layout changes go in `config/project.json -> places.hubs[0]`, then re-run
    `build_area.py` + `build_places.py`.
 
@@ -173,16 +183,16 @@ Vidigal), plus the one-time palette imports with materials into `/Game/Rio/Mater
 
 Steps 1-3 **done on 2026-11-24** on branch `macbook/vidigal-hub` (`MacBookSessionNotes.md` -> Session 6; spots to
 walk in `UnrealDebugGuide.md` -> "Vidigal hub, layout 2"). Step 4 **done** on `macbook/vidigal-infill`
-(Session 7). Step 5 **done** on `macbook/vidigal-details` (Session 8). Next: the walk-around test on the mini,
-then step 6.
+(Session 7). Step 5 **done** on `macbook/vidigal-details` (Session 8). Step 6 **done** on
+`macbook/vidigal-escadarias` (Session 9). Next: the walk-around test on the mini.
 
 1. ~~Hub praca~~: 34 x 22 m praca at the centre, shops facing it, boteco / kiosk / mototaxi on its east side.
 2. ~~Hub stairs~~: four designed stairs (street, praca, campinho) plus a gate; fence and walls open at them.
 3. ~~Stairways everywhere~~: OSM `highway=steps` are solid treads (4.4 km / 7,244 steps in the Vidigal AOI).
 4. ~~Less grid-like infill~~ (done, Session 7). Was: varied lot sizes / heights, merged blocks, colour variation (painted houses).
 5. ~~Details~~ (done, Session 8): house doors / entrances, overhead wire tangles, narrow car access, lookout points.
-6. Later, after the walk-around test: one or two signature escadarias (e.g. a long painted stair from the hub
-   toward the top).
+6. ~~Signature escadarias~~ (done, Session 9, before the walk-around test at the user's request): Escadaria do
+   Niemeyer + Escadaria Padre Ítalo; judge them in the walk-around.
 
 Still open from earlier: Unreal verification of everything (no editor on the MacBook), `UnrealDebugGuide.md`
 problems 1-2, the restaurants across the Lagoa ring road (decide after the drive / walk test), then the

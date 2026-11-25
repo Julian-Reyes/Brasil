@@ -175,3 +175,38 @@ What to look for:
   a cable material with opacity fade later). Frame cost: ~176 k triangles in Wires tiles.
 * **Lookouts:** the view (sea, Leblon / Ipanema) from the bench; railing height 1.05 m; the deck block reaching
   the ground on the downhill side; the house(s) removed for it (7 in total) leave no hole in a terrace wall.
+
+## Vidigal signature escadarias (2026-11-25)
+
+Renders: `Docs/Map/screenshots/vidigal_escadaria_{padre_italo,niemeyer_bar,top}.png`,
+`vidigal_escadarias_aerial.png`. Routes and landings: `GeoData/exports/test_vidigal/escadarias.json` (written by
+`build_area.py`); treads and furniture are in the `Details` tiles (`build_details.py`); markers kind `escadaria`
+and `bar`.
+
+| What | UTM | UE (cm) |
+|---|---|---|
+| Escadaria do Niemeyer: base (Av. Niemeyer) | E680884 N7455907 z1 | (-361622, 509346, 81) |
+| Escadaria do Niemeyer: bar | E680787 N7455912 z18 | (-371319, 508772, 1787) |
+| Escadaria do Niemeyer: topo (street below the hub) | E680762 N7455995 z29 | (-373783, 500451, 2876) |
+| Escadaria Padre Ítalo: base (fork off the Niemeyer stair) | E680775 N7455932 z22 | (-372491, 506814, 2218) |
+| Padre Ítalo: rainbow run on the old pedestrian lane, eye height | E680656 N7455951 z50 | (-384407, 504918, 5039) |
+| Padre Ítalo: bar 1 | E680628 N7455944 z58 | (-387199, 505602, 5791) |
+| Padre Ítalo: sharp turn onto the upper stairs, eye height | E680560 N7455970 z77 | (-393977, 502996, 7655) |
+| Padre Ítalo: bar 2 | E680539 N7455933 z93 | (-396130, 506684, 9340) |
+| Padre Ítalo: topo | E680394 N7455870 z138 | (-410554, 512981, 13842) |
+
+What to look for:
+
+* **Walkability:** 17 cm risers everywhere; next to each landing the steps are up to ~27% steeper for 3 m (the
+  landing is carved out of the slope; shortest tread 25 cm on Padre Ítalo, 30 cm on Niemeyer). The upper half of
+  Rua Padre Ítalo Coelho (33%) and the stairs above it (35-46%) are the steepest parts.
+* **Terrain:** the ground is lowered 30 cm under the treads and 30 cm beyond their edges (`stairs.apply_ramp`);
+  nothing should poke through a tread. Treads are solid 60 cm below their lowest point.
+* **Corridor:** 3 m between the house fronts (7 buildings removed). Most houses lining it are painted; half of
+  the walls facing it carry a mural panel (flat colour for now). A mural may cover part of a door.
+* **Handrail:** on the left going up, 95 cm, posts every 2 m (collision). Lamps (3.8 m posts with an arm) on the
+  right every 18 m, none at a bar. Benches on every 2nd landing, back to the right side.
+* **Bars:** counter, red awning (2.45 m high), sign and a yellow plastic table with 2 stools on the landing:
+  check the table leaves a free path (~1.3 m) and the awning clears heads.
+* Lookout 4 (z15) is next to the lower stair; the first ~25 m above Av. Niemeyer are nearly flat (long green
+  tread / ramp).

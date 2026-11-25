@@ -34,6 +34,7 @@ from rio_geo import places as plc  # noqa: E402
 from rio_geo.beach import box as box_mesh  # noqa: E402
 from rio_geo import roads as rd  # noqa: E402
 from rio_geo import stairs as st  # noqa: E402
+from rio_geo import escadarias as esc  # noqa: E402
 from rio_geo import terrain as ter  # noqa: E402
 from rio_geo.common import (CONFIG, EXPORTS_DIR, PROCESSED_DIR, PROJECT_DIR, PROJECTED_CRS, RAW_DIR,  # noqa: E402
                             aoi_bbox_utm, stable_unit, utm_to_ue, write_metadata)
@@ -100,6 +101,14 @@ def main():
         edges, narrowed = rd.narrow_in_zones(edges, favela_union, lanes_cfg, hubs_keep)
         if narrowed:
             log("favela lanes narrowed: " + ", ".join(f"{c} {L / 1000:.1f} km" for c, L in sorted(narrowed.items())))
+    ecfg = CONFIG.get("escadarias", {"enabled": False})
+    esc_routes = []
+    if ecfg["enabled"]:  # signature stairs: retag their ways as wide stairs before infill and the road solve
+        edges, esc_routes = esc.resolve_routes(edges, ecfg)
+        for rt in esc_routes:
+            log(f"escadaria {rt['name']}: " + (f"skipped (not in this AOI: {rt['missing']})" if "missing" in rt else
+                f"{rt['length_m']} m over {len(rt['edges'])} ways ({', '.join(f'{c} {v} m' for c, v in rt['classes'].items())})"))
+        esc_routes = [rt for rt in esc_routes if "missing" not in rt]
 
     # ---------------- terrain
     hs = [bld.building_height(r, bool(r["informal"]), bcfg) for _, r in buildings.iterrows()]
@@ -299,6 +308,44 @@ def main():
     elif (out / "stairs.json").exists():
         (out / "stairs.json").unlink()
 
+    # ---------------- signature escadarias: clear the corridor, paint the facades, landings; meshes by build_details
+    esc_out = []
+    if esc_routes:
+        is_esc = surf["escadaria"].map(lambda v: isinstance(v, str)).to_numpy() if "escadaria" in surf else \
+            np.zeros(len(surf), bool)
+        for rt in esc_routes:
+            rows = [i for i in np.flatnonzero(is_esc) if surf.iloc[i]["escadaria"] == rt["name"]]
+            if not rows:
+                continue
+            order = {n: k for k, n in enumerate(rt["nodes"])}
+            rows.sort(key=lambda i: min(order.get(surf.iloc[i]["u"], 1e9), order.get(surf.iloc[i]["v"], 1e9)))
+            width = float(surf.iloc[rows[0]]["width_m"])
+            corridor = shapely.union_all([surf.geometry.iloc[i].buffer(width / 2 + ecfg["clear_buildings_m"],
+                                                                         cap_style="flat") for i in rows])
+            hit = buildings.geometry.intersects(corridor).to_numpy()
+            buildings = buildings[~hit].reset_index(drop=True)
+            painted = esc.paint_houses(buildings, corridor, ecfg["paint_houses"], key=rt["name"])
+            eds, nland = [], 0
+            for i in rows:
+                r = surf.iloc[i]
+                lift = rcfg["surface_offset_m"] + r["rank"] * 0.004
+                prof = esc.oriented(profiles[i] + [0.0, 0.0, lift], r["u"], r["v"], rt)
+                pl, lands = esc.with_landings(prof, ecfg["landings"])
+                nland += len(lands)
+                # ground under the treads (and just beyond their edges) below them: no terrain through a tread on
+                # a cross-slope; terraces untouched
+                st.apply_ramp(terrain, pl, width + 2 * ecfg["ramp_extra_m"], sink=ecfg["ramp_sink_m"], blend_m=1.0,
+                              protect=shapely.union_all([t["polygon"] for t in terr]) if terr else None)
+                eds.append({"osmid": str(r["osmid"]), "profile": np.round(pl[::2] if len(pl) > 4 else pl, 3).tolist(),
+                            "landings": lands})
+            spec = next(x for x in ecfg["routes"] if x["name"] == rt["name"])
+            esc_out.append({"name": rt["name"], "width": width, "paint": spec["paint"], "bars": spec.get("bars", 0),
+                            "length_m": rt["length_m"], "edges": eds,
+                            "z": [round(eds[0]["profile"][0][2], 1), round(eds[-1]["profile"][-1][2], 1)]})
+            log(f"escadaria {rt['name']}: {esc_out[-1]['z'][0]} -> {esc_out[-1]['z'][1]} m, {len(eds)} edges, "
+                f"{nland} landings; {int(hit.sum())} buildings cleared from the corridor, {painted} facades painted")
+    (out / "escadarias.json").write_text(json.dumps(esc_out, indent=1))
+
     # ---------------- lookouts (mirantes): sited here so the house or two on each deck leave the meshes; the deck,
     # railing and bench are built by build_details.py from lookouts.json (rio_geo/details.py)
     lcfg = CONFIG.get("details", {}).get("lookouts", {"enabled": False})
@@ -372,6 +419,10 @@ def main():
     step_stats = {"edges": 0, "steps": 0, "length_m": 0.0, "steep_treads_under_25cm": 0}
     for (_, r), prof in zip(surf.iterrows(), profiles):
         lift = rcfg["surface_offset_m"] + r["rank"] * 0.004
+        if isinstance(r.get("escadaria"), str) and esc_out:  # built by build_details.py (escadarias.json)
+            step_stats["edges"] += 1
+            step_stats["length_m"] += r.geometry.length
+            continue
         if r["group"] == "steps" and scfg["enabled"] and not r["is_bridge"]:
             blocks, info = st.step_blocks(prof + [0.0, 0.0, lift], r["width_m"], scfg["rise_m"])
             for v, t in blocks:

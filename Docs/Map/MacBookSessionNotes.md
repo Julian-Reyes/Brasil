@@ -632,3 +632,74 @@ houses (55%); Lagoa area 120 doors, 9 poles, no lookout; beach area 733 doors + 
 **27 without a power span** (steep, dense, few car streets: chords hit taller houses; they still feed 85 drops),
 2 lookouts (76 m and 62 m, 4 houses removed). `test_leblon_vidigal`: 4.8 km narrowed, 2 lookouts, 183 poles.
 Carriageway conflicts 21 / 32 / 10 (OSM-mapped buildings).
+
+# Session 9 (2026-11-25, MacBook): Vidigal signature escadarias (step 6)
+
+Branch `macbook/vidigal-escadarias` (from `macbook/vidigal-details`). Step 6 of the Vidigal plan, done before the
+walk-around test at the user's request (they will judge it in the walk-around). **Nothing seen in the editor.**
+Renders: `Docs/Map/screenshots/vidigal_escadaria_{padre_italo,niemeyer_bar,top}.png`,
+`vidigal_escadarias_aerial.png`; spots in `UnrealDebugGuide.md` -> "Vidigal signature escadarias".
+
+Choosing the routes: the Vidigal OSM steps form branching networks rather than single stairs (the longest is
+933 m in 37 ways). The hub (44 m) has no stair climbing straight out of it; the stair networks start below it.
+Searched the pedestrian graph for uphill routes from near the hub, then fixed the routes by OSM node id:
+
+* **Escadaria do Niemeyer** (`nodes` 3209675931 -> 3209675879 -> 3209672838): Av. Niemeyer (0.8 m) to the
+  street just below the hub (28.8 m), 200 m, all OSM steps. Brazil-flag paint: green / yellow alternating steps.
+  1 bar.
+* **Escadaria Padre Ítalo** (`nodes` 3209675879 -> 3197556361): forks off the Niemeyer stair at 22 m, climbs Rua
+  Padre Ítalo Coelho (a pedestrian lane, 33% at its steepest; now steps), then the stairs above to 138.4 m.
+  547 m (steps 306 m, pedestrian 218 m, footway 23 m). Rainbow paint in 1.02 m height bands (6 risers per
+  colour). 2 bars.
+
+Names are idealised (OSM has no names for these ways). New config `escadarias`; new module
+`rio_geo/escadarias.py`.
+
+How it's built:
+
+* **Top of `build_area.py`** (`resolve_routes`, after the lane narrowing): cheapest path between the route nodes
+  over the pedestrian graph (cost per metre: steps 1, footway / path / pedestrian 1.5, car streets 6-8); its ways
+  get `highway=steps`, `width=3.0` and an `escadaria` tag. So the infill lines them at 3 m, the profile solve
+  treats them as stairs and the carve covers the full width.
+* **After the road solve (`build_area.py`):**
+  * buildings intersecting the corridor (width / 2 + 0.2 m) are dropped (3 + 4);
+  * 85% of the favela houses within 2 m get a painted facade (51 + 132);
+  * landings: a 1.6 m flat run every 2.4 m of climb where the grade is >= 12%. The 3 m of profile on each side is
+    stretched so heights meet the solved line again: up to ~27% steeper, shortest tread 25 cm. 8 + 34 landings;
+  * `stairs.apply_ramp` sets the ground under the stair (+0.3 m each side) to the stair line - 0.3 m (terraces
+    untouched): the first renders showed terrain through the tread edges on cross-slopes;
+  * writes `escadarias.json` (edges oriented base -> top, profiles with landings, landings). The stair edges are
+    no longer meshed in `build_area.py` (they are counted in `stepped stairs`, without treads).
+* **`build_details.py`** (`escadarias.parts`), all in the `Details` tiles (complex collision):
+  * solid treads 60 cm deep, painted per tread (alternating along the route) or by height band;
+  * handrail on the left going up (posts every 2 m, 95 cm);
+  * lamp posts on the right every 18 m (3.8 m, arm, lamp head `M_Lamp`), skipped near bars;
+  * a bench on every 2nd landing;
+  * murals: a flat panel on 50% of the >= 2.5 m house walls facing the stair (up to 2.8 m high, 5 colours);
+  * bars at landings spread along the route: counter, red awning, sign on the house wall beside the landing, a
+    plastic table with two stools;
+  * markers kind `escadaria` (base, topo) and `bar`.
+  * New palette materials (the one-time `SM_DetailsPalette.obj` import covers them): `M_Esc{Red,Orange,Yellow,
+    Green,Blue,Purple}`, `M_Lamp`, `M_Mural1-5`, `M_BarCounter`, `M_Awning`, `M_BarSign`, `M_Plastic`.
+
+Numbers (test_vidigal): Niemeyer 168 treads, 197 m rail, 10 lamps, 4 benches, 19 murals, 1 bar; Padre Ítalo 727
+treads, 550 m rail, 29 lamps, 17 benches, 42 murals, 2 bars. Details 276 k triangles (was 256 k); buildings
+13,890; area 2.48 M triangles.
+
+## Open / to check in the editor (step 6)
+
+* Walk both stairs end to end with the template character, especially the steep upper part (35-46% before the
+  landings).
+* The handrail runs along one side only, so the stair stays clear across its width; the bar tables narrow their
+  landings to ~1.3 m.
+* Murals are flat colour panels and can cover part of a door; real mural textures later.
+* No water channel (canaleta) yet. Lamps don't light anything (blockout material only).
+* The hub-to-stair link is the street (Av. Pres. Joao Goulart, ~90 m) from the Niemeyer stair's top: is that
+  close enough, or should a hub stair connect directly?
+
+## Regression (step 6)
+
+`test_lagoa` and `test_leblon_arpoador` (build_area + build_places + build_details) build unchanged; both routes
+are logged as skipped there (nodes not in the AOI). `test_leblon_vidigal` builds both escadarias, but on its
+known 20-35 m higher ground model (Niemeyer 36.1 -> 62.6 m, Padre Ítalo 63.4 -> 133.0 m, 24 landings); use
+`test_vidigal`.

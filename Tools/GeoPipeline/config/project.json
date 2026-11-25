@@ -249,6 +249,36 @@
                  "over_roof_m": 0.25, "hub_exclude_m": 90.0, "max_removed": 2}
   },
 
+  "escadarias": {
+    "_doc": "Signature stairways (rio_geo/escadarias.py): each route is the cheapest pedestrian path through the listed OSM node ids (cost per metre by class), retagged as a wide stair before infill and the road solve; landings, paint, rail, lamps, benches, murals and bars by build_details.py. Routes whose nodes are not in an AOI are skipped. Names are idealised (OSM leaves these ways unnamed).",
+    "enabled": true,
+    "width_m": 3.0,
+    "cost": {"steps": 1.0, "footway": 1.5, "path": 1.5, "pedestrian": 1.5, "track": 2.0, "living_street": 6.0,
+             "service": 6.0, "residential": 8.0, "unclassified": 8.0},
+    "landings": {"every_rise_m": 2.4, "length_m": 1.6, "margin_m": 3.0, "min_grade": 0.12},
+    "tread_depth_m": 0.6,
+    "ramp_extra_m": 0.3, "ramp_sink_m": 0.3,
+    "clear_buildings_m": 0.2,
+    "paint_houses": {"reach_m": 2.0, "share": 0.85,
+                     "materials": ["M_HousePaintWhite", "M_HousePaintYellow", "M_HousePaintBlue", "M_HousePaintGreen",
+                                   "M_HousePaintPink", "M_HousePaintTeal"]},
+    "rail": {"post_spacing_m": 2.0, "height_m": 0.95, "radius_m": 0.025, "inset_m": 0.2},
+    "lamps": {"spacing_m": 18.0, "height_m": 3.8},
+    "bench_every_landing": 2,
+    "murals": {"share": 0.5, "min_wall_m": 2.5, "reach_m": 1.5, "height_m": 2.8,
+               "materials": ["M_Mural1", "M_Mural2", "M_Mural3", "M_Mural4", "M_Mural5"]},
+    "bars": {"counter_m": 2.2, "awning_m": 1.5},
+    "routes": [
+      {"name": "Escadaria do Niemeyer", "_doc": "Av. Niemeyer (1 m) up to the street below the hub (29 m); Brazil-flag steps.",
+       "nodes": [3209675931, 3209675879, 3209672838], "bars": 1,
+       "paint": {"mode": "alternate", "colours": ["M_EscGreen", "M_EscYellow"]}},
+      {"name": "Escadaria Padre Ítalo", "_doc": "Branches off the Escadaria do Niemeyer (22 m), Rua Padre Ítalo Coelho, the stairs up to 138 m; rainbow bands.",
+       "nodes": [3209675879, 3197556361], "bars": 2,
+       "paint": {"mode": "bands", "band_m": 1.02,
+                 "colours": ["M_EscRed", "M_EscOrange", "M_EscYellow", "M_EscGreen", "M_EscBlue", "M_EscPurple"]}}
+    ]
+  },
+
   "places": {
     "_doc": "Terraces for sports pitches (OSM outlines) and designed hubs, their meshes and gameplay markers (rio_geo/places.py; terraces in build_area.py, meshes in scripts/build_places.py). Hub layouts are UTM metres: move them here after a walk-around test.",
     "clear_margin_m": 2.0,

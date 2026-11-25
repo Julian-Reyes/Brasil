@@ -187,6 +187,14 @@ All inside `build_area.py` unless noted; settings in `config/project.json`.
   markers. Reads `houses.gpkg` (all placed footprints with heights, written by `build_area.py`).
   One-time Unreal step: import `details/SM_DetailsPalette.obj` with materials into `/Game/Rio/Materials/Blockout/`.
 
+* **Signature escadarias** (`escadarias`, `rio_geo/escadarias.py`): each configured route (OSM node ids, cheapest
+  pedestrian path between them) is retagged a 3 m stair at the top of `build_area.py` (so infill lines it and the
+  profile solve treats it as a stair); after the road solve `build_area.py` clears buildings from its corridor,
+  paints the facades next to it, inserts landings into its profile, lowers the ground under it and writes
+  `escadarias.json` (it does not mesh those edges). `build_details.py` builds painted treads (alternating or
+  height bands), a handrail, lamps, benches, murals, bars and `escadaria` / `bar` markers. Routes whose nodes are
+  not in an AOI are skipped.
+
 Vidigal order: `clip_osm.py`, `fetch_beach.py --set vidigal`, `build_area.py`, `build_places.py`,
 `build_details.py`, import.
 

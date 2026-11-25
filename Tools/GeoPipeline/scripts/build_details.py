@@ -1,8 +1,10 @@
-"""Step 5e - favela street details: house doors, utility poles + overhead wire tangles, lookouts (rio_geo/details.py).
+"""Step 5e - favela street details: house doors, utility poles + overhead wire tangles, lookouts (rio_geo/details.py),
+and the signature escadarias (rio_geo/escadarias.py: painted treads, rail, lamps, benches, murals, bars).
 
 Run AFTER build_area.py (needs houses.gpkg, road_graph_source.json and the Terrain tiles) and build_places.py
-(hub terraces / stairs, which poles and lookouts keep off). Appends kinds "Details" (doors, poles, lookout decks;
-complex collision) and "Wires" (cables; no collision) to the manifest, plus lookout markers (kind "lookout").
+(hub terraces / stairs, which poles and lookouts keep off). Appends kinds "Details" (doors, poles, lookout decks,
+escadaria treads and furniture; complex collision) and "Wires" (cables; no collision) to the manifest, plus markers
+(kinds "lookout", "escadaria", "bar").
 
 One-time Unreal step: import details/SM_DetailsPalette.obj with materials into /Game/Rio/Materials/Blockout/.
 
@@ -21,6 +23,7 @@ from shapely import wkt
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from rio_geo import details as dt  # noqa: E402
+from rio_geo import escadarias as esc  # noqa: E402
 from rio_geo import favela as fav  # noqa: E402
 from rio_geo import places as plc  # noqa: E402
 from rio_geo import stairs as st  # noqa: E402
@@ -36,6 +39,13 @@ PALETTE = {
     "M_DoorStep": (0.60, 0.59, 0.56), "M_Shutter": (0.50, 0.52, 0.54), "M_Pole": (0.66, 0.66, 0.64),
     "M_Transformer": (0.38, 0.42, 0.40), "M_Wire": (0.05, 0.05, 0.05), "M_LookoutDeck": (0.70, 0.68, 0.63),
     "M_Railing": (0.25, 0.27, 0.28),
+    # escadarias: painted treads, lamps, murals, bars
+    "M_EscRed": (0.80, 0.20, 0.18), "M_EscOrange": (0.90, 0.50, 0.15), "M_EscYellow": (0.95, 0.80, 0.15),
+    "M_EscGreen": (0.10, 0.55, 0.28), "M_EscBlue": (0.15, 0.40, 0.75), "M_EscPurple": (0.50, 0.25, 0.60),
+    "M_Lamp": (1.00, 0.92, 0.70), "M_Mural1": (0.95, 0.35, 0.45), "M_Mural2": (0.20, 0.65, 0.75),
+    "M_Mural3": (0.98, 0.70, 0.20), "M_Mural4": (0.45, 0.30, 0.70), "M_Mural5": (0.35, 0.75, 0.35),
+    "M_BarCounter": (0.55, 0.40, 0.25), "M_Awning": (0.85, 0.15, 0.15), "M_BarSign": (0.98, 0.95, 0.85),
+    "M_Plastic": (0.95, 0.85, 0.10),
 }
 # also used here, defined elsewhere: M_Bench (shore palette)
 
@@ -117,6 +127,22 @@ def main():
     if sites:
         log("lookouts (sited by build_area.py): " + "; ".join(
             f"{s['edge']} @ {s['z']:.0f} m facing {s['heading_deg']:.0f} deg" for s in sites))
+
+    ecfg = CONFIG.get("escadarias", {"enabled": False})
+    report["escadarias"] = []
+    if ecfg["enabled"] and (exp / "escadarias.json").exists():
+        rise = CONFIG["roads"]["stepped_stairs"]["rise_m"]
+        for e in json.loads((exp / "escadarias.json").read_text()):
+            ps, mks, stats = esc.parts(e, houses, terrain, ecfg, rise)
+            for mat, v, tr, anchor in ps:
+                tm.add_object(mat, v, tr, anchor)
+            for m in mks:
+                x, y = m["xy"]
+                manifest["markers"].append({"name": m["name"], "kind": m["kind"], "utm": [round(x, 2), round(y, 2),
+                                            round(m["z"], 2)], "location_cm": list(utm_to_ue(x, y, m["z"])),
+                                            "source": "details"})
+            report["escadarias"].append({"name": e["name"], "z": e["z"], "length_m": e["length_m"], **stats})
+            log(f"escadaria {e['name']}: {stats}")
 
     write_mtl(out / "details.mtl", PALETTE)
     palette = MeshBuilder()

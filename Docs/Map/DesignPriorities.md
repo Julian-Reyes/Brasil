@@ -82,6 +82,11 @@ player's house. Still a stylised blockout, to be judged on the walk-around test.
 side; poles, power lines and a tangle of cables over the lanes and becos; the lanes inside the favela are one car
 wide (Av. Pres. Joao Goulart stays wider); four mirantes (small decks with a railing and bench) where a beco or
 lane looks over the roofs to the sea.
+**Signature escadarias, 2026-11-25 (MacBook, blockout):** two landmark stairs, 3 m wide. Escadaria do Niemeyer
+(green / yellow steps) climbs from Av. Niemeyer to the street below the hub; Escadaria Padre Ítalo (rainbow
+bands) forks off it and climbs Rua Padre Ítalo Coelho and the stairs above to 138 m. Landings every ~2.4 m of
+climb, handrail, lamps, benches, murals, painted houses and three small bars on landings: routes the player
+learns, natural stages for chases and meetings. Names idealised; routes are real OSM ways.
 
 **Rules for the compressed map:**
 
