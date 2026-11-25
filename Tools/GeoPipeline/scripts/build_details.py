@@ -87,6 +87,8 @@ def main():
     if (exp / "stairs.json").exists():
         block += [st.corridor(np.asarray(s["profile"])[:, :2], s["width"]).buffer(0.8)
                   for s in json.loads((exp / "stairs.json").read_text())]
+    if (exp / "turnarounds.json").exists():  # turning bulbs are carriageway: no poles on them
+        block += [wkt.loads(t["polygon"]).buffer(0.3) for t in json.loads((exp / "turnarounds.json").read_text())]
     blockers = shapely.union_all(block) if block else None
     if blockers is not None:
         shapely.prepare(blockers)

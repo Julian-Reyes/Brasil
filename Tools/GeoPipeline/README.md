@@ -177,11 +177,18 @@ All inside `build_area.py` unless noted; settings in `config/project.json`.
 * **Favela lanes** (`roads.favela_lanes`, `rio_geo/roads.py narrow_in_zones`): drivable streets mostly inside a
   favela polygon with no mapped width get one-car widths (residential 4.2 m, living street 3.4 m, service 3.0 m;
   Av. Pres. Joao Goulart 6.0 m by name). Hub streets keep theirs (`hub_keep_radius_m`).
+* **Turnarounds** (`roads.turnarounds`, `rio_geo/turnarounds.py`, in `build_area.py` after the road solve): every
+  dead end of a narrow (<= 5 m) lane inside a favela gets an 11 m turning bulb tilted like the lane's end, the
+  ground graded to it and informal houses on it dropped (skipped / smaller where it would hit a formal building,
+  a hub element, an escadaria or another street at a different height). Writes `turnarounds.json`; meshed in
+  the Roads tiles; `build_details.py` keeps poles off the bulbs.
 * **Street details** (`details`, `rio_geo/details.py`, `scripts/build_details.py --aoi <aoi>`, after
   `build_places.py`): doors on every favela house (on the wall facing its street / beco / stair, at the ground
   outside it; roller shutters on some ground floors on car streets), concrete poles along favela car streets with
   power lines, sagging telecom / "gato" cables, transformers and service drops, and cables zigzagging wall to wall
-  over becos and stairs (kind `Wires`, no collision). Lookouts (mirantes): `build_area.py` picks the best few
+  over becos and stairs (kind `Wires`, no collision). Every pole gets a power line: poles are linked in order along
+  their street, then to neighbours across junctions; a blocked span is retried with both poles raised (up to
+  12.5 m), then via a new pole at the street point in between; a pole that still reaches nothing is removed. Lookouts (mirantes): `build_area.py` picks the best few
   points on becos / stairs / lanes looking over the roofs to the sea (`lookout_sites`, clears the house or two on
   each deck, writes `lookouts.json`); `build_details.py` builds the deck, railing and bench and adds `lookout`
   markers. Reads `houses.gpkg` (all placed footprints with heights, written by `build_area.py`).

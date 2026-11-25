@@ -103,7 +103,11 @@
     "favela_lanes": {"_doc": "Narrow car access inside favela polygons (rio_geo/roads.py narrow_in_zones): unmapped-width drivable streets mostly inside a favela get one-car widths; the main road keeps a bus-and-car width. Designed hubs keep their streets.",
                      "enabled": true, "min_inside_share": 0.5, "hub_keep_radius_m": 70.0,
                      "width_m": {"residential": 4.2, "unclassified": 4.2, "living_street": 3.4, "service": 3.0},
-                     "by_name": {"Avenida Presidente João Goulart": 6.0}}
+                     "by_name": {"Avenida Presidente João Goulart": 6.0}},
+    "turnarounds": {"_doc": "Turning bulbs at the dead ends of narrow favela lanes (rio_geo/turnarounds.py): a disc reaching beyond_m past the end node, the largest of radius_m that fits, tilted like the lane's last grade_from_m.",
+                    "enabled": true, "classes": ["residential", "unclassified", "living_street", "service"],
+                    "max_width_m": 5.0, "min_length_m": 15.0, "zone_buffer_m": 10.0, "edge_margin_m": 20.0,
+                    "radius_m": [5.5, 4.5], "beyond_m": 1.5, "grade_from_m": 6.0, "blend_m": 2.5, "house_clear_m": 0.3}
   },
 
   "buildings": {
@@ -239,7 +243,7 @@
     "doors": {"enabled": true, "min_wall_m": 1.6, "search_m": 14.0, "door_m": [0.9, 2.1], "shutter_m": [2.6, 2.5],
               "shutter_share": 0.3, "door_materials": ["M_Door", "M_Door", "M_DoorBlue", "M_DoorGreen"]},
     "wires": {"enabled": true, "radius_m": 0.012, "segments": 8,
-              "poles": {"spacing_m": 22.0, "min_gap_m": 11.0, "height_m": [8.5, 9.5], "max_span_m": 42.0,
+              "poles": {"spacing_m": 22.0, "min_gap_m": 11.0, "height_m": [8.5, 9.5], "max_span_m": 42.0, "raise_steps_m": [1.0, 2.0, 3.0], "max_height_m": 12.5,
                         "transformer_share": 0.2, "telecom_below_top_m": 3.0, "telecom_cables": [2, 5]},
               "drops": {"radius_m": 24.0, "share": 0.6, "max_per_pole": 12},
               "becos": {"step_m": 7.0, "snap_m": 2.0, "height_m": [3.0, 4.6], "max_cables": 3, "tie_m": 30.0}},

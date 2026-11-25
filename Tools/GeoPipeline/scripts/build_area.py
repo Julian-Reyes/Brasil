@@ -35,6 +35,7 @@ from rio_geo.beach import box as box_mesh  # noqa: E402
 from rio_geo import roads as rd  # noqa: E402
 from rio_geo import stairs as st  # noqa: E402
 from rio_geo import escadarias as esc  # noqa: E402
+from rio_geo import turnarounds as tna  # noqa: E402
 from rio_geo import terrain as ter  # noqa: E402
 from rio_geo.common import (CONFIG, EXPORTS_DIR, PROCESSED_DIR, PROJECT_DIR, PROJECTED_CRS, RAW_DIR,  # noqa: E402
                             aoi_bbox_utm, stable_unit, utm_to_ue, write_metadata)
@@ -308,6 +309,28 @@ def main():
     elif (out / "stairs.json").exists():
         (out / "stairs.json").unlink()
 
+    # ---------------- turning space at the dead ends of narrow favela lanes (rio_geo/turnarounds.py)
+    tcfg = rcfg.get("turnarounds", {"enabled": False})
+    pads = []
+    if tcfg["enabled"] and favela_union is not None:
+        cands = tna.dead_ends(surf, profiles, nodes_xy, bbox, favela_union.buffer(tcfg["zone_buffer_m"]), tcfg)
+        tblock = [t["polygon"].buffer(0.5) for t in terr] + [e["polygon"].buffer(1.0) for e in elems] + \
+                 [s_["corridor"].buffer(0.8) for s_ in hub_stairs]
+        if "escadaria" in surf:
+            tblock += [g.buffer(w / 2 + 0.5, cap_style="flat") for g, w, e in
+                       zip(surf.geometry, surf["width_m"], surf["escadaria"]) if isinstance(e, str)]
+        pads, gone, tstats = tna.site_pads(cands, surf, profiles, buildings,
+                                           shapely.union_all(tblock) if tblock else None, tcfg)
+        buildings = buildings.drop(index=buildings.index[gone]).reset_index(drop=True)
+        protect = shapely.union_all([t["polygon"] for t in terr]) if terr else None
+        for pad in pads:
+            tna.apply_pad(terrain, pad, rcfg["terrain_sink_m"], tcfg["blend_m"], protect)
+        log(f"turnarounds: {tstats}; radii " + ", ".join(f"{p_['radius']:.1f}" for p_ in pads))
+    (out / "turnarounds.json").write_text(json.dumps(
+        [{"edge_osmid": str(surf.iloc[p_["edge"]]["osmid"]), "node": int(p_["node"]), "radius": p_["radius"],
+          "center": np.round(p_["center"], 3).tolist(), "z": round(float(p_["end"][2]), 3),
+          "grade": round(p_["grade"], 4), "polygon": p_["polygon"].wkt} for p_ in pads], indent=1))
+
     # ---------------- signature escadarias: clear the corridor, paint the facades, landings; meshes by build_details
     esc_out = []
     if esc_routes:
@@ -441,6 +464,10 @@ def main():
             v, t, nrm = rd.ribbon(local, r["width_m"] / 2, lift)
             tiles[key]["Roads"].add(rd.MATERIAL[r["group"]], v, t, nrm)
 
+    for pad in pads:  # turning bulbs, just under the lane ribbon where they overlap it
+        key = tile_of(*pad["center"])
+        v, t, nrm = tna.pad_mesh(pad, rcfg["surface_offset_m"] - 0.003, (W + key[0] * tile_m, S + key[1] * tile_m))
+        tiles[key]["Roads"].add("M_RoadMinor", v, t, nrm)
     if step_stats["edges"]:
         log(f"stepped stairs: {step_stats['edges']} steps edges, {step_stats['length_m'] / 1000:.1f} km, "
             f"{step_stats['steps']} steps; {step_stats['steep_treads_under_25cm']} edges with a tread < 25 cm")

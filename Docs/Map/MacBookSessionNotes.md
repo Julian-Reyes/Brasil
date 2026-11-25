@@ -703,3 +703,49 @@ treads, 550 m rail, 29 lamps, 17 benches, 42 murals, 2 bars. Details 276 k trian
 are logged as skipped there (nodes not in the AOI). `test_leblon_vidigal` builds both escadarias, but on its
 known 20-35 m higher ground model (Niemeyer 36.1 -> 62.6 m, Padre Ítalo 63.4 -> 133.0 m, 24 landings); use
 `test_vidigal`.
+
+# Session 10 (2026-11-25, MacBook): turnarounds at dead ends, every pole linked
+
+Branch `macbook/vidigal-lanes-poles` (from `macbook/vidigal-escadarias`). Done before the walk-around test at the
+user's request. **Nothing seen in the editor.** Renders: `Docs/Map/screenshots/vidigal_turnaround_{flat,slope,
+steep}.png`, `vidigal_poles_linked.png`; spots in `UnrealDebugGuide.md` -> "Turnarounds and pole lines".
+
+**Turnarounds** (new `rio_geo/turnarounds.py`, config `roads.turnarounds`, in `build_area.py` right after the hub
+stairs, before the escadarias):
+
+* Dead ends: nodes of degree 1 in the drivable graph, on residential / unclassified / living street / service
+  edges <= 5 m wide and >= 15 m long, inside the favela polygons (+10 m), not within 20 m of the AOI edge (clipped
+  edges), and only where the edge really ends at the node. Vidigal AOI: 39 drivable dead ends, of which 16 qualify
+  (the rest are 7 m formal streets, short stubs or at the AOI edge).
+* Bulb: a disc of radius 5.5 m (4.5 m if 5.5 does not fit) whose far edge is 1.5 m past the end node, on a plane
+  through the end with the lane's grade over its last 6 m (level across). Not built where it would hit a formal
+  building, a hub terrace / element / designed stair, an escadaria, or another street more than 0.4 m off the
+  plane. Informal houses within 0.3 m are dropped.
+* The heightfield is set to the plane minus the road sink under the bulb, blending out over 2.5 m (terraces
+  protected). Mesh: a 24-sided fan in the Roads tiles, `M_RoadMinor`, 3 mm under the lane ribbon.
+* `turnarounds.json` (bulb polygons, centre, z, grade); `build_details.py` adds them to the pole blockers.
+* Vidigal AOI: 16 of 16 built (all 5.5 m), 75 houses dropped. Grades range from level to 33% (6 above 19%).
+
+**Every pole linked** (`rio_geo/details.py poles_and_wires`, config `details.wires.poles.raise_steps_m`,
+`max_height_m`). Before: each pole tried chords to its 4 nearest neighbours; chords across a bend hit a taller
+house, so 35 / 344 poles (Vidigal) and 27 / 55 (Pavao-Pavaozinho) had no power line. Now spans are chosen first
+and the cables built after (pole heights can still change):
+
+1. along each street, consecutive poles in order (the street is clear of houses);
+2. then nearest neighbours across junctions (shortest first, <= 3 spans per pole; a redundant span between two
+   already-fed poles is only added if it fits as is);
+3. a blocked span is retried with both poles raised by 1 / 2 / 3 m (max 12.5 m), then (same street, > 8 m apart)
+   via a new pole on the shoulder at the street point halfway, recursively twice;
+4. a pole still without a span tries its 5 nearest poles within 63 m; if none works it is removed.
+
+Vidigal AOI: 395 poles (was 344), 390 spans, 24 raised, 61 added, 2 removed, **0 unlinked**; drops 448.
+
+## Regression (Session 10)
+
+All four areas rebuild (build_area + build_places + build_details; beach / shore not re-run). No unlinked poles
+anywhere:
+
+* `test_lagoa`: 3 turnarounds (16 houses), 8 poles (1 removed).
+* `test_leblon_arpoador` (Pavao-Pavaozinho): 11 turnarounds (45 houses); 51 poles, 14 raised, 12 added, 8 removed.
+  Before this session, 27 of its 55 poles had no power line.
+* `test_leblon_vidigal`: 10 turnarounds (48 houses); 194 poles, 1 removed.

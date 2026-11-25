@@ -169,7 +169,7 @@ What to look for:
   touching the lane (infill keeps 1 m from the kerb); `build_area.py` reports 20 carriageway conflicts in this
   AOI (footprints over a drivable street, from OSM-mapped buildings).
 * **Poles:** on the shoulder, never on the carriageway, a footway or a stair; a pole inside a house wall would be
-  a bug. 35 of 344 poles have no power span (every span blocked by a taller house); they still feed drops.
+  a bug. Since Session 10 every pole has a power span (see "Turnarounds and pole lines" below).
 * **Wires:** no collision (kind `Wires`, `collision: none`). Check they clear head height over becos (>= 2.4 m),
   do not pass through roofs, and how 1.2 cm cables look at distance (aliasing / shimmer: may need a min width or
   a cable material with opacity fade later). Frame cost: ~176 k triangles in Wires tiles.
@@ -210,3 +210,28 @@ What to look for:
   check the table leaves a free path (~1.3 m) and the awning clears heads.
 * Lookout 4 (z15) is next to the lower stair; the first ~25 m above Av. Niemeyer are nearly flat (long green
   tread / ramp).
+
+## Turnarounds and pole lines (2026-11-25, Session 10)
+
+Renders: `Docs/Map/screenshots/vidigal_turnaround_{flat,slope,steep}.png`, `vidigal_poles_linked.png`. Pads:
+`GeoData/exports/test_vidigal/turnarounds.json` (16 in the Vidigal AOI), meshed in the `Roads` tiles
+(`M_RoadMinor`, same collision as the roads).
+
+| What | UTM | UE (cm) |
+|---|---|---|
+| Turnaround, level (grade 0%) | E680169 N7455680 z132 | (-433060, 531970, 13150) |
+| Turnaround, 19% | E679743 N7455783 z221 | (-475740, 521740, 22050) |
+| Turnaround, 33% (steepest) | E679687 N7456330 z151 | (-481270, 466990, 15050) |
+| Turnaround, -24% (downhill end) | E680244 N7455869 z134 | (-425590, 513150, 13440) |
+
+What to look for:
+
+* **Turning:** drive a car to the end of a 3-4.2 m lane and turn in the 11 m bulb (radius 5.5 m, reaching 1.5 m
+  past the end of the lane). The bulb is tilted like the lane's last 6 m (level across): the steep ones (19-33%)
+  may be too steep to turn on.
+* **Seams:** the bulb sits 3 mm under the lane ribbon where they overlap; look for z-fighting or a lip where the
+  lane ribbon ends. The ground is graded to the bulb and blends out over 2.5 m.
+* **Clearing:** informal houses on the bulb (+0.3 m) were dropped (75 in the AOI); the open space around a bulb
+  should read as a small largo, not a hole.
+* **Poles:** 395 poles, all with a power span. 24 poles are taller (up to 12.5 m) so a span clears a roof, 61
+  poles were added at street bends; check the tall ones don't look odd and no added pole stands in a doorway.

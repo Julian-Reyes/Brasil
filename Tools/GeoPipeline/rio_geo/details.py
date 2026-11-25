@@ -214,8 +214,30 @@ def poles_and_wires(houses, circ, terrain, zones, blockers, cfg):
     """Returns (pole parts [(material, verts, tris, anchor)], wire parts [(verts, tris, anchor)], poles, stats)."""
     pc = cfg["poles"]
     shapely.prepare(zones)
-    poles = []  # dicts: xy, z, height, arm (unit vector), key
-    for k, (line, w, grp) in enumerate(zip(circ.lines, circ.width, circ.group)):
+
+    def place(k, s, side, key):
+        """A pole on the shoulder of edge k at arclength s (preferred side first), or None."""
+        line, w = circ.lines[k], circ.width[k]
+        L = line.length
+        p = np.asarray(line.interpolate(s).coords[0])
+        q = np.asarray(line.interpolate(min(L, s + 0.5)).coords[0]) - np.asarray(line.interpolate(max(0, s - 0.5)).coords[0])
+        t = q / max(np.hypot(*q), 1e-9)
+        n = np.array([-t[1], t[0]])
+        for off in (w / 2 + 0.35, w / 2 + 0.2, -(w / 2 + 0.35), -(w / 2 + 0.2)):
+            c = p + n * side * off
+            pt = Point(*c)
+            if not zones.contains(pt) or circ.carriageways.contains(pt) or circ.footways.contains(pt):
+                continue
+            if any(g.distance(pt) < 0.25 for g in (houses.geoms[h] for h in houses.tree.query(pt.buffer(0.3)))):
+                continue
+            if blockers is not None and blockers.contains(pt):
+                continue
+            return {"xy": c, "z": _z(terrain, *c), "arm": n, "key": key, "edge": k, "s": float(s),
+                    "height": _between(pc["height_m"], stable_unit(key + ("h",)))}
+        return None
+
+    poles = []  # dicts: xy, z, height, arm (unit vector), key, edge, s
+    for k, (line, grp) in enumerate(zip(circ.lines, circ.group)):
         if grp not in ("major", "minor") or circ.edges[k]["bridge"] or not line.intersects(zones):
             continue
         ekey = ("pole", circ.edges[k]["osmid"], k)
@@ -224,23 +246,10 @@ def poles_and_wires(houses, circ, terrain, zones, blockers, cfg):
         s = pc["spacing_m"] * 0.5 * stable_unit(ekey + ("start",))
         j = 0
         while s < L:
-            p = np.asarray(line.interpolate(s).coords[0])
-            q = np.asarray(line.interpolate(min(L, s + 0.5)).coords[0]) - np.asarray(line.interpolate(max(0, s - 0.5)).coords[0])
-            t = q / max(np.hypot(*q), 1e-9)
-            n = np.array([-t[1], t[0]])
-            for off in (w / 2 + 0.35, w / 2 + 0.2, -(w / 2 + 0.35)):
-                c = p + n * side * off
-                pt = Point(*c)
-                if not zones.contains(pt) or circ.carriageways.contains(pt) or circ.footways.contains(pt):
-                    continue
-                if any(g.distance(pt) < 0.25 for g in (houses.geoms[h] for h in houses.tree.query(pt.buffer(0.3)))):
-                    continue
-                if blockers is not None and blockers.contains(pt):
-                    continue
-                key = ekey + (j,)
-                poles.append({"xy": c, "z": _z(terrain, *c), "arm": n, "key": key,
-                              "height": _between(pc["height_m"], stable_unit(key + ("h",)))})
-                break
+            p = place(k, s, side, ekey + (j,))
+            if p is not None:
+                p["side"] = side
+                poles.append(p)
             s += pc["spacing_m"] * (0.85 + 0.3 * stable_unit(ekey + (j, "gap")))
             j += 1
     # drop near-duplicates (junctions, both sides of a split edge)
@@ -249,11 +258,108 @@ def poles_and_wires(houses, circ, terrain, zones, blockers, cfg):
         if all(np.hypot(*(p["xy"] - o["xy"])) >= pc["min_gap_m"] for o in kept):
             kept.append(p)
     poles = kept
+    stats = {"poles": 0, "spans": 0, "power_cables": 0, "telecom_cables": 0, "drops": 0, "beco_cables": 0,
+             "spans_dropped": 0, "poles_raised": 0, "poles_inserted": 0, "poles_removed": 0}
     parts, wires = [], []
-    stats = {"poles": len(poles), "spans": 0, "power_cables": 0, "telecom_cables": 0, "drops": 0, "beco_cables": 0,
-             "spans_dropped": 0}
+    if not poles:
+        stats["poles_unlinked"] = 0
+        return parts, wires, poles, stats
+
+    # ---- the power network. Spans are chosen first (pole heights may still grow), cables are built after.
+    def mid_power(p, extra=0.0):
+        return np.r_[p["xy"], p["z"] + p["height"] + extra - 0.48]
+
+    def span_ok(a, b, ra=0.0, rb=0.0):
+        pa, pb = poles[a], poles[b]
+        L = float(np.hypot(*(pa["xy"] - pb["xy"])))
+        return _span_ok(mid_power(pa, ra), mid_power(pb, rb), 0.3 + 0.012 * L, houses, terrain, 4.0)
+
+    spans, deg = [], {}
+
+    def link(a, b):
+        spans.append((min(a, b), max(a, b)))
+        deg[a], deg[b] = deg.get(a, 0) + 1, deg.get(b, 0) + 1
+
+    def try_link(a, b, depth):
+        """Link a-b: as is, else with both poles raised (up to max_height_m), else (same street) via a new pole at
+        the street point in between. Returns True if at least one span was added."""
+        if span_ok(a, b):
+            link(a, b)
+            return True
+        pa, pb = poles[a], poles[b]
+        for r in pc["raise_steps_m"]:
+            if max(pa["height"], pb["height"]) + r > pc["max_height_m"]:
+                break
+            if span_ok(a, b, r, r):
+                for p in (pa, pb):
+                    if not p.get("raised"):
+                        stats["poles_raised"] += 1
+                    p["height"] += r
+                    p["raised"] = True
+                link(a, b)
+                return True
+        if depth > 0 and pa.get("edge") is not None and pa.get("edge") == pb.get("edge") and abs(pa["s"] - pb["s"]) > 8.0:
+            m = place(pa["edge"], (pa["s"] + pb["s"]) / 2, pa.get("side", 1), pa["key"] + ("mid", depth))
+            if m is not None and min(np.hypot(*(m["xy"] - pa["xy"])), np.hypot(*(m["xy"] - pb["xy"]))) >= 4.0:
+                m["side"] = pa.get("side", 1)
+                poles.append(m)
+                c = len(poles) - 1
+                ok1, ok2 = try_link(a, c, depth - 1), try_link(c, b, depth - 1)
+                if ok1 or ok2:
+                    stats["poles_inserted"] += 1
+                    return True
+                poles.pop()  # unused: nothing linked to it
+        stats["spans_dropped"] += 1
+        return False
+
+    # 1. along each street: consecutive poles, in order (the street is clear of houses, so these mostly succeed)
+    by_edge = {}
+    for i, p in enumerate(poles):
+        by_edge.setdefault(p["edge"], []).append(i)
+    for k, idx in sorted(by_edge.items()):
+        idx.sort(key=lambda i: poles[i]["s"])
+        for a, b in zip(idx[:-1], idx[1:]):
+            if np.hypot(*(poles[a]["xy"] - poles[b]["xy"])) <= pc["max_span_m"] * 1.5:
+                try_link(a, b, 2)
+    # 2. across junctions / between streets: nearest neighbours, shortest first, at most 3 spans per pole
+    n0 = len(poles)
+    xy = np.array([p["xy"] for p in poles[:n0]])
+    kd = cKDTree(xy)
+    pairs = set()
+    for a in range(n0):
+        for dist, b in zip(*kd.query(xy[a], k=min(5, n0))):
+            if b != a and dist <= pc["max_span_m"]:
+                pairs.add((min(a, b), max(a, b)))
+    have = set(spans)
+    for a, b in sorted(pairs, key=lambda ab: np.hypot(*(xy[ab[0]] - xy[ab[1]]))):
+        if (a, b) in have or deg.get(a, 0) >= 3 or deg.get(b, 0) >= 3:
+            continue
+        if poles[a]["edge"] == poles[b]["edge"]:
+            continue  # same street: handled in order above
+        if deg.get(a, 0) and deg.get(b, 0) and not span_ok(a, b):
+            continue  # both already fed: do not raise poles just for a redundant span
+        try_link(a, b, 0)
+    # 3. still unlinked: the nearest pole it can reach (raised if needed); failing that, the pole is removed
+    for a in range(len(poles)):
+        if deg.get(a):
+            continue
+        d = np.hypot(*(np.array([p["xy"] for p in poles]) - poles[a]["xy"]).T)
+        for b in np.argsort(d)[1:6]:
+            if d[b] > pc["max_span_m"] * 1.5:
+                break
+            if try_link(a, int(b), 0):
+                break
+    keep = [i for i in range(len(poles)) if deg.get(i)]
+    stats["poles_removed"] = len(poles) - len(keep)
+    remap = {i: j for j, i in enumerate(keep)}
+    poles = [poles[i] for i in keep]
+    spans = sorted({(remap[a], remap[b]) for a, b in spans})
+    stats["poles"] = len(poles)
+    if not poles:
+        stats["poles_unlinked"] = 0
+        return parts, wires, poles, stats
+
     for p in poles:
-        x, y = p["xy"]
         z, H = p["z"], p["height"]
         arm_yaw = float(np.arctan2(p["arm"][1], p["arm"][0]))
         parts.append(("M_Pole", *box(p["xy"], arm_yaw, (0.24, 0.24), z - 0.4, z + H), p["xy"]))
@@ -263,28 +369,13 @@ def poles_and_wires(houses, circ, terrain, zones, blockers, cfg):
             parts.append(("M_Transformer", *box(c, arm_yaw, (0.6, 0.6), z + H - 2.9, z + H - 1.8), p["xy"]))
         p["power"] = [np.r_[p["xy"] + p["arm"] * o, z + H - 0.48] for o in (-0.75, -0.25, 0.75)]
         p["telecom_z"] = z + H - pc["telecom_below_top_m"]
-    if not poles:
-        return parts, wires, poles, stats
     xy = np.array([p["xy"] for p in poles])
     kd = cKDTree(xy)
-    pairs = set()
-    for a in range(len(poles)):
-        for dist, b in zip(*kd.query(xy[a], k=min(4, len(poles)))):
-            if b != a and dist <= pc["max_span_m"]:
-                pairs.add((min(a, b), max(a, b)))
-    linked = {}
-    for a, b in sorted(pairs, key=lambda ab: np.hypot(*(xy[ab[0]] - xy[ab[1]]))):
+    for a, b in spans:
         pa, pb = poles[a], poles[b]
         L = float(np.hypot(*(pa["xy"] - pb["xy"])))
-        # keep a graph, not a mesh: at most 3 spans per pole, shortest spans first
-        if linked.get(a, 0) >= 3 or linked.get(b, 0) >= 3:
-            continue
         key = ("span", pa["key"], pb["key"])
         sag_p = 0.3 + 0.012 * L
-        if not _span_ok(pa["power"][1], pb["power"][1], sag_p, houses, terrain, 4.0):
-            stats["spans_dropped"] += 1
-            continue
-        linked[a], linked[b] = linked.get(a, 0) + 1, linked.get(b, 0) + 1
         stats["spans"] += 1
         for k in range(3):
             v, t = wire(pa["power"][k], pb["power"][k], sag_p + 0.05 * k, cfg["radius_m"], cfg["segments"])
@@ -308,7 +399,7 @@ def poles_and_wires(houses, circ, terrain, zones, blockers, cfg):
             d = (pb["xy"] - pa["xy"]) / L * (1.2 + 0.6 * k)
             v, t = wire(c, np.r_[pa["xy"] + d, pa["telecom_z"] - 0.1 * k], 0.35 + 0.15 * k, cfg["radius_m"] * 1.4, 4)
             wires.append((v, t, pa["xy"]))
-    stats["poles_unlinked"] = sum(1 for a in range(len(poles)) if not linked.get(a))
+    stats["poles_unlinked"] = 0
     # service drops: informal houses near a pole get a cable to the wall facing it
     dc = cfg["drops"]
     per_pole = {}

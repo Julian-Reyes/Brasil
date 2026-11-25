@@ -4,9 +4,10 @@ Read this first, then `README.md`, `DesignPriorities.md` and `Tools/GeoPipeline/
 
 ## START HERE ON THE MAC MINI (written 2026-11-24, updated 2026-11-25 on the MacBook)
 
-Branch: **`macbook/vidigal-escadarias`** (contains everything: `macbook/vidigal` + the offline OSM source + the hub
-work in `macbook/vidigal-hub` + the favela infill in `macbook/vidigal-infill` + the step 5 street details in
-`macbook/vidigal-details` + the step 6 signature escadarias).
+Branch: **`macbook/vidigal-lanes-poles`** (contains everything: `macbook/vidigal` + the offline OSM source + the
+hub work in `macbook/vidigal-hub` + the favela infill in `macbook/vidigal-infill` + the step 5 street details in
+`macbook/vidigal-details` + the step 6 signature escadarias in `macbook/vidigal-escadarias` + turnarounds and
+linked poles).
 `main` is still untouched. Nothing below has been opened in Unreal yet; the laptop checked it with
 pipeline renders only (`Docs/Map/screenshots/vidigal_hub_3d.png`, `vidigal_hub_praca.png`,
 `vidigal_hub_long_stair.png`, `vidigal_osm_steps.png`, `vidigal_hub_preview.png`).
@@ -28,11 +29,14 @@ What changed (details: `MacBookSessionNotes.md` -> Session 5 and Session 6):
   below the hub; Escadaria Padre Ítalo: up to 138 m) with landings, a handrail, lamps, benches, murals and three
   bars. Built by `build_area.py` (route, corridor, landings) + `build_details.py` (meshes). Renders:
   `screenshots/vidigal_escadaria*.png`.
+* Turnarounds and pole lines (Session 10): turning bulbs at the 16 dead ends of narrow favela lanes; every pole
+  now has a power line (poles raised or added at bends). Renders: `screenshots/vidigal_turnaround_*.png`,
+  `vidigal_poles_linked.png`.
 
 ### Checklist
 
 ```sh
-git fetch && git checkout macbook/vidigal-escadarias && git pull
+git fetch && git checkout macbook/vidigal-lanes-poles && git pull
 cd Tools/GeoPipeline
 uv pip install --python .venv/bin/python -r requirements.txt          # adds osmium (pyosmium)
 mkdir -p ../../GeoData/raw/osm/extract && curl -fL -o ../../GeoData/raw/osm/extract/RiodeJaneiro.osm.pbf \
@@ -53,9 +57,9 @@ $P scripts/build_details.py --aoi test_lagoa && $P scripts/build_details.py --ao
 Expected log lines for Vidigal: `hub stairs: praca to campinho 40.5->38.7 m, 11 steps ...`, `escadaria Escadaria do
 Niemeyer: 0.8 -> 28.8 m, 6 edges, 8 landings`, `escadaria Escadaria Padre Ítalo: 22.2 -> 138.4 m, 15 edges, 34
 landings`, `stepped stairs: 159 steps edges, 4.7 km, 6685 steps` (the escadarias' treads are counted by
-`build_details.py`, not here), `favela lanes narrowed: living_street 0.6 km, residential 7.1 km, service 1.6 km`, `favela infill: Rocinha: +5700
+`build_details.py`, not here), `turnarounds: {'dead_ends': 16, 'built': 16, 'skipped': 0, 'houses_dropped': 75}`, `favela lanes narrowed: living_street 0.6 km, residential 7.1 km, service 1.6 km`, `favela infill: Rocinha: +5700
 houses ... Vidigal: +5141 houses, coverage 8% -> 55%`, `lookouts: {... 'built': 4, 'houses_removed': 7}`, and
-from `build_details.py`: `doors: {'doors': 12155, 'shutters': 487, ...}`, `poles and wires: {'poles': 344, ...}`. If the mini's numbers differ a lot, suspect the laptop's older geo packages
+from `build_details.py`: `doors: {'doors': 12155, 'shutters': 487, ...}`, `poles and wires: {'poles': 395, ..., 'poles_removed': 2, 'poles_unlinked': 0}`. If the mini's numbers differ a lot, suspect the laptop's older geo packages
 (`MacBookSessionNotes.md` -> "Laptop setup").
 
 In the editor (one time, with materials, into `/Game/Rio/Materials/Blockout/`): re-import
@@ -83,6 +87,8 @@ Fly to the spots in **`UnrealDebugGuide.md` -> "Vidigal hub, layout 2"** (UTM + 
 4d. Escadarias (spots: `UnrealDebugGuide.md` -> "Vidigal signature escadarias"): walk both end to end (17 cm
     risers, landings, the steeper steps next to a landing), the handrail and lamps in the way or not, bars and
     tables blocking the stair, does each read as a landmark from the street / from a distance.
+4e. Turnarounds and poles (spots: `UnrealDebugGuide.md` -> "Turnarounds and pole lines"): turn a car in a
+    level and a steep bulb, seams with the lane, tall / added poles.
 5. Report back anything off; layout changes go in `config/project.json -> places.hubs[0]`, then re-run
    `build_area.py` + `build_places.py`.
 
