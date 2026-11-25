@@ -251,7 +251,11 @@ def place_features(cl, prof, features, cfg):
                            "number": int(m.group(1)) if m else None, "source": f"osm:{f['osm_type']}/{f['osm_id']}"})
         elif str(f.get("shop")) == "kiosk" or str(f.get("amenity")) in KIOSK_AMENITY:
             kiosks.append({"i": i, "offset": off, "name": name, "source": f"osm:{f['osm_type']}/{f['osm_id']}"})
-    # One posto per number (OSM often has both the tower node and the base building).
+    # One posto per number (OSM often has both the tower node and the base building). An unnamed lifeguard
+    # feature within 30 m of a numbered one is the same post (Copacabana: tower way + "Posto N" node).
+    numbered = [cl.s[p["i"]] for p in postos if p["number"] is not None]
+    postos = [p for p in postos if p["number"] is not None
+              or not numbered or min(abs(cl.s[p["i"]] - s) for s in numbered) > 30.0]
     by_num = {}
     for p in postos:
         key = p["number"] if p["number"] is not None else f"i{p['i'] // 25}"
@@ -513,7 +517,7 @@ def build_geometry(cl, prof, terrain, tm, cfg, postos, kiosks):
         n_palms += 1
     stats["palms"] = n_palms
     # for the preview only (stripped from the report)
-    stats["_debug"] = {"kerb": kerb, "cic_out": cic_out, "calc_out": calc_out, "water": water, "canal": canal,
+    stats["_debug"] = {"V": V, "off": off, "kerb": kerb, "cic_out": cic_out, "calc_out": calc_out, "water": water, "canal": canal,
                        "palms": np.array(palms_xy).reshape(-1, 2)}
     return stats
 

@@ -768,3 +768,81 @@ What the beach area has now: grey extruded buildings (12,104; 73% with OSM heigh
 sand, red ciclovia, grey calcadao, 290 palms, 23 kiosks, Postos 7-12. Missing: umbrellas / chairs / barracas,
 footvolley nets, building facades, wave paving, Copacabana (outside every AOI; only the Arpoador edge is in).
 Seen in the renders: terrain poking through the sand near the waterline and around Posto 9 (known issue).
+
+# Session 12 (2026-11-25, MacBook): beach life, formal facades, beach terrain, Copacabana
+
+Branch `macbook/beach-life` (on top of `macbook/vidigal-lanes-poles`). Nothing opened in Unreal. Renders:
+`screenshots/beach_life_posto9_aerial.png`, `beach_life_posto9_sand.png`, `ipanema_facades_aerial.png`,
+`copacabana_aerial.png`, `copacabana_posto3.png`. Spots: `UnrealDebugGuide.md` -> "Beach life, facades, Copacabana".
+
+## 1. Beach life (new `rio_geo/beach_life.py`, `beach.life` in the config)
+
+Written by `build_beach.py` as a new kind **`BeachLife`** (`beach/SM_T<i><j>_BeachLife.obj`, **no collision**):
+barracas (vendor stall: counter, posts, pyramid roof in the stall's colour, chair stack) every ~36 m on a line
+~22% of the way across the sand (>= 20 m from the calcadao); each owns a field of umbrellas (pole + tilted
+octagonal canopy), 0-2 folding chairs facing the sea, and towel-only spots, mostly in the stall's colour;
+volleyball / footvolley courts (tape lines, posts, net) on the open sand next to the calcadao: OSM
+`sport=*volley*` pitches first (2 in Ipanema), then one every ~160 m. Density peaks at the busy Postos
+(`posto_density`: Posto 9 0.95, Posto 10 0.85, Posto 8 0.75, ...; base 0.30). New materials (`M_Umbrella*` x6,
+`M_ChairFrame`, `M_Barraca`, `M_CourtLine`, `M_NetPost`, `M_Net`) are in `SM_BeachPalette.obj`.
+
+| area | barracas | umbrellas | chairs | towels | courts | BeachLife triangles |
+|---|---|---|---|---|---|---|
+| Leblon-Arpoador | 72 | 1923 | 2894 | 650 | 2 OSM + 18 | 97 k |
+| Copacabana-Leme | 52 | 1976 | 2954 | 611 | 16 | 98 k |
+
+## 2. Formal-city buildings (`rio_geo/buildings.py formal_style`, `buildings.formal_style`)
+
+Non-favela buildings get a facade colour (`M_FacadeWhite/Cream/Beige/Grey/Concrete/Salmon/Blue`, weighted), a
+3.5 m darker ground-floor band (`M_GroundFloor`, buildings >= 7 m), a 1 m parapet and, on buildings >= 12 m
+with >= 120 m2 roofs, a machine room / reservoir box (`M_RoofConcrete`). New slots are in
+`SM_BlockoutPalette.obj`. Also: `building=roof` canopies are 3 m (`roof_canopy_m`; were 6-12 m blocks on the
+calcadao: Copacabana's kiosk roofs) and formal footprints < 25 m2 are one storey (`tiny_footprint_m2`).
+Windows / balconies are left for the Unreal material pass (per-floor slabs would cost millions of triangles).
+
+## 3. Beach terrain and beachfront roads
+
+* **Bug found:** `cap_flat_shores` used the lagoon "bank floor" (level + 0.6 m) for beaches too. Outside a beach
+  polygon is partly open sea, so a 30-40 m strip of fake land at +1.1 m stood in the surf (the "terrain poking
+  through the sand near the waterline" from earlier notes). Meanwhile the sand itself was classed as sea by the
+  DSM test: a 2-5 m pit under the beach. Now beaches get no floor; their sand is a ramp from `beach_top_m` 0.6
+  (land side) to `beach_bottom_m` -0.4 (sea side). Seabed beyond the sand -5 m.
+* **Beachfront avenues** (`roads.flat_fronts`): the ground the road solver follows is capped at 1.6 m for
+  Delfim Moreira / Vieira Souto / Francisco Bhering / Atlantica. Ipanema-Leblon centreline was 1.0-3.9 m, now
+  1.0-3.3 m (the 3.3 is the west end by the Mirante, where the hill foot is kept; the rest is ~1.0-1.6).
+* **Beachfront ground cap** (`terrain.cap_front_roads`): behind Copacabana's towers the ground model kept 10-37 m
+  of rooftop signal 30-80 m inland (flat streets in reality). Within 150 m (+60 m blend) of Delfim Moreira /
+  Vieira Souto / Atlantica the ground may rise at most 1.6 m + 5% x distance, **scaled by formal-building
+  coverage** (60 m window, full at 30%) and never inside natural-cover or favela polygons: a first version cut
+  43 m off the foot of Dois Irmaos, 35 m off Morro do Leme and 30 m off Chapeu Mangueira; the coverage rule keeps
+  those. `report.json -> shore_cap -> front_roads_largest_cuts` lists where it cut most.
+* **Not fixed (needs your call):** Posto 6, Av. Atlantica x Rua Francisco Sa still humps to ~11 m. Same mechanism
+  as Problem 2: Francisco Sa (secondary, 12% grade limit) ends at the Cantagalo foot at ~35 m and the solver
+  lifts the junction. Option A (`max_slope_weight: 100`, `clamp_min_height: true`) makes Atlantica 1.0-3.7 m
+  end to end (scratch run, not committed as default). Decide after checking Problem 2 in the editor.
+
+## 4. Copacabana / Leme test area (new AOI `test_copacabana`)
+
+`bbox_utm [685000, 7456500, 688500, 7460000]`: Posto 6 / Forte to Leme, back to Cantagalo, Pavao-Pavaozinho and
+Barata Ribeiro. `build_beach.py` now takes per-AOI overrides (`aois.<aoi>.beach`: `front_roads`, `beach_names`,
+`feature_set`); new feature set `copacabana` (`copacabana.gpkg`). Postos 1-5 from OSM (no Posto 6 in OSM);
+unnamed lifeguard ways within 30 m of a numbered Posto are merged (was 9 Postos). 47 kiosks from OSM, 279 palms,
+calcadao capped at 12 m wide (measured wider), sand 114 m median to the waterline. 4,293 buildings, 4.54 M
+triangles in the area tiles. Pavao-Pavaozinho gets favela infill, doors and poles here too.
+
+## Also
+
+* `build_beach.py` keeps non-Posto markers (Session 11) and drops old `BeachLife` actors on re-run.
+* `render_view.py` draws `BeachLife` and the facade / beach palettes.
+* All four test areas rebuilt; Vidigal numbers unchanged except the formal-building styles.
+
+## Open / to check in the editor
+
+* Beach life: umbrella scale (r ~1.1 m, h ~2.15 m) next to the template character; chairs readable; is no
+  collision OK (walking through umbrellas) or do barracas need simple collision; frame cost (~97 k triangles of props per area).
+* Courts: net heights 2.43 m volley / 2.2 m footvolley; courts clear of palms / kiosks.
+* Facades: colour mix from the street and from the sea; ground band reads as shopfronts / pilotis; machine rooms
+  not poking through parapets.
+* Sand edge: with the new ramp the terrain under the beach is lower; look for gaps under the calcadao skirt (0.6 m)
+  where the calcadao is up to 3.9 m above the terrain in Copacabana (`terrain_above_calcadao_m` min -3.89).
+* Copacabana: the Posto 6 hump (above), the Tunel Novo portal slope (cut 33 m to 7.6 m: real hill or residue?).

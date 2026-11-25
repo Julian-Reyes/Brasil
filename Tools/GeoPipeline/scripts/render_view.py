@@ -25,14 +25,14 @@ COLOURS = {
     "M_BuildingFormal": (0.86, 0.85, 0.80), "M_WaterTank": (0.12, 0.35, 0.80), "M_Sea": (0.15, 0.35, 0.55),
     "M_Bench": (0.42, 0.29, 0.16), "M_TreeTrunk": (0.40, 0.30, 0.20), "M_TreeCrown": (0.20, 0.48, 0.20),
 }
-KINDS = ("Terrain", "Roads", "Buildings", "Places", "Details", "Wires", "Beach", "Shore", "Water")
+KINDS = ("Terrain", "Roads", "Buildings", "Places", "Details", "Wires", "Beach", "BeachLife", "Shore", "Water")
 
 
 def palette():
     cols = dict(COLOURS)
     try:
         from build_area import PALETTE as B  # noqa: PLC0415
-        cols.update({k: v for k, v in B.items() if k.startswith("M_House")})
+        cols.update({k: v for k, v in B.items() if k.startswith(("M_House", "M_Facade", "M_GroundFloor", "M_RoofConcrete"))})
     except Exception:  # noqa: BLE001 - optional
         pass
     for mod in ("build_places", "build_details", "build_beach", "build_shore"):

@@ -4,10 +4,11 @@ Read this first, then `README.md`, `DesignPriorities.md` and `Tools/GeoPipeline/
 
 ## START HERE ON THE MAC MINI (written 2026-11-24, updated 2026-11-25 on the MacBook)
 
-Branch: **`macbook/vidigal-lanes-poles`** (contains everything: `macbook/vidigal` + the offline OSM source + the
+Branch: **`macbook/beach-life`** (contains everything: `macbook/vidigal` + the offline OSM source + the
 hub work in `macbook/vidigal-hub` + the favela infill in `macbook/vidigal-infill` + the step 5 street details in
 `macbook/vidigal-details` + the step 6 signature escadarias in `macbook/vidigal-escadarias` + turnarounds and
-linked poles).
+linked poles in `macbook/vidigal-lanes-poles` + beach life, formal facades, beach terrain fixes and the new
+Copacabana area).
 `main` is still untouched. Nothing below has been opened in Unreal yet; the laptop checked it with
 pipeline renders only (`Docs/Map/screenshots/vidigal_hub_3d.png`, `vidigal_hub_praca.png`,
 `vidigal_hub_long_stair.png`, `vidigal_osm_steps.png`, `vidigal_hub_preview.png`).
@@ -32,11 +33,16 @@ What changed (details: `MacBookSessionNotes.md` -> Session 5 and Session 6):
 * Turnarounds and pole lines (Session 10): turning bulbs at the 16 dead ends of narrow favela lanes; every pole
   now has a power line (poles raised or added at bends). Renders: `screenshots/vidigal_turnaround_*.png`,
   `vidigal_poles_linked.png`.
+* Beach life, facades, Copacabana (Session 12): barracas / umbrellas / chairs / towels / volleyball and
+  footvolley courts on both beaches (new kind `BeachLife`, no collision); formal buildings get facade colours,
+  a dark ground-floor band, parapets and roof machine rooms; beach terrain fixed (no fake land strip in the surf,
+  no pit under the sand); beachfront avenues flattened; new AOI `test_copacabana` (Posto 6 to Leme). Renders:
+  `screenshots/beach_life_*.png`, `ipanema_facades_aerial.png`, `copacabana_*.png`.
 
 ### Checklist
 
 ```sh
-git fetch && git checkout macbook/vidigal-lanes-poles && git pull
+git fetch && git checkout macbook/beach-life && git pull
 cd Tools/GeoPipeline
 uv pip install --python .venv/bin/python -r requirements.txt          # adds osmium (pyosmium)
 mkdir -p ../../GeoData/raw/osm/extract && curl -fL -o ../../GeoData/raw/osm/extract/RiodeJaneiro.osm.pbf \
@@ -45,6 +51,7 @@ P=.venv/bin/python
 $P scripts/fetch_beach.py --aoi test_leblon_arpoador --set beach
 $P scripts/fetch_beach.py --aoi test_lagoa --set lagoa
 $P scripts/fetch_beach.py --aoi test_vidigal --set vidigal
+$P scripts/clip_osm.py --aoi test_copacabana && $P scripts/fetch_beach.py --aoi test_copacabana --set copacabana
 cp ../../GeoData/raw/osm/test_lagoa/lagoa.gpkg ../../GeoData/raw/osm/test_leblon_arpoador/
 # builds (each area: build_area first, then its extra steps)
 $P scripts/build_area.py --aoi test_vidigal && $P scripts/build_places.py --aoi test_vidigal && $P scripts/build_details.py --aoi test_vidigal
@@ -52,7 +59,16 @@ $P scripts/build_area.py --aoi test_lagoa && $P scripts/build_shore.py --aoi tes
 $P scripts/build_area.py --aoi test_leblon_arpoador && $P scripts/build_beach.py --aoi test_leblon_arpoador \
   && $P scripts/build_shore.py --aoi test_leblon_arpoador && $P scripts/build_places.py --aoi test_leblon_arpoador
 $P scripts/build_details.py --aoi test_lagoa && $P scripts/build_details.py --aoi test_leblon_arpoador   # Pavao-Pavaozinho
+$P scripts/build_area.py --aoi test_copacabana && $P scripts/build_beach.py --aoi test_copacabana \
+  && $P scripts/build_places.py --aoi test_copacabana && $P scripts/build_details.py --aoi test_copacabana
 ```
+
+Expected (Session 12): Leblon-Arpoador `beach life: {'barracas': 72, 'umbrellas': 1923, 'chairs': 2894, 'towels':
+650, 'courts_osm': 2, 'courts_procedural': 18 ...}`, beach centreline `z 1.01..3.28 m`; Copacabana `geometry: 12
+tiles, 5 postos, 47 kiosks, 279 palms`, `beach life: {'barracas': 52, 'umbrellas': 1976, ...}`, `buildings placed:
+4293`. New level for Copacabana: `$P unreal/ue_remote.py unreal/create_test_level.py '{"level":
+"/Game/Rio/Maps/L_Rio_Test_Copacabana", "player_start": {"name": "PlayerStart_Copacabana", "location_cm": [192000,
+232000, 300], "yaw": 0}}'`, then `import_area.py '{"aoi": "test_copacabana"}'`.
 
 Expected log lines for Vidigal: `hub stairs: praca to campinho 40.5->38.7 m, 11 steps ...`, `escadaria Escadaria do
 Niemeyer: 0.8 -> 28.8 m, 6 edges, 8 landings`, `escadaria Escadaria Padre Ítalo: 22.2 -> 138.4 m, 15 edges, 34
@@ -63,7 +79,9 @@ from `build_details.py`: `doors: {'doors': 12155, 'shutters': 487, ...}`, `poles
 (`MacBookSessionNotes.md` -> "Laptop setup").
 
 In the editor (one time, with materials, into `/Game/Rio/Materials/Blockout/`): re-import
-`SM_BlockoutPalette.obj` (has `M_WaterTank` and the new house facades `M_HouseRender`, `M_HousePaint*`), import `beach/SM_BeachPalette.obj`, `shore/SM_ShorePalette.obj`,
+`SM_BlockoutPalette.obj` (has `M_WaterTank`, the house facades `M_HouseRender`, `M_HousePaint*` and, new in
+Session 12, `M_Facade*`, `M_GroundFloor`, `M_RoofConcrete`), import `beach/SM_BeachPalette.obj` (Session 12 adds
+`M_Umbrella*`, `M_ChairFrame`, `M_Barraca`, `M_CourtLine`, `M_NetPost`, `M_Net`), `shore/SM_ShorePalette.obj`,
 **re-import `places/SM_PlacesPalette.obj`** (new `M_Stair`), and **import `details/SM_DetailsPalette.obj`** (new:
 doors, shutter, pole, transformer, wire, lookout deck, railing, and the escadaria paints, lamp, murals, bar). Then for each level (`L_Rio_Test_Vidigal`,
 `L_Rio_Test_Lagoa`, `L_Rio_Test_LeblonArpoador`):
@@ -89,6 +107,9 @@ Fly to the spots in **`UnrealDebugGuide.md` -> "Vidigal hub, layout 2"** (UTM + 
     tables blocking the stair, does each read as a landmark from the street / from a distance.
 4e. Turnarounds and poles (spots: `UnrealDebugGuide.md` -> "Turnarounds and pole lines"): turn a car in a
     level and a steep bulb, seams with the lane, tall / added poles.
+4f. Beaches and Copacabana (spots: `UnrealDebugGuide.md` -> "Beach life, facades, Copacabana"): umbrella / chair
+    scale, frame rate at Posto 9, courts, facade colours, sand edge vs calcadao, the Posto 6 hump (decide option A
+    together with Problem 2), the Tunel Novo slope.
 5. Report back anything off; layout changes go in `config/project.json -> places.hubs[0]`, then re-run
    `build_area.py` + `build_places.py`.
 
@@ -204,7 +225,9 @@ Still open from earlier: Unreal verification of everything (no editor on the Mac
 problems 1-2, the restaurants across the Lagoa ring road (decide after the drive / walk test), then the
 compressed map.
 
-### Next on the MacBook (no Unreal needed; noted 2026-11-25, nothing started)
+### Next on the MacBook (no Unreal needed; noted 2026-11-25)
+
+Session 12 did the beach / building / Copacabana work below the list (beach life, facades, terrain, Copacabana).
 
 Most remaining work waits on the walk-around (stairs / lanes / turnarounds feel, cable shimmer, frame rate,
 problems 1-2). What the laptop can still do, most useful first:

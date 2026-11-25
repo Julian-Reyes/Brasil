@@ -50,6 +50,10 @@ PALETTE = {
     "M_HousePaintYellow": (0.88, 0.76, 0.44), "M_HousePaintBlue": (0.48, 0.62, 0.76),
     "M_HousePaintGreen": (0.56, 0.68, 0.50), "M_HousePaintPink": (0.84, 0.60, 0.62),
     "M_HousePaintTeal": (0.34, 0.60, 0.58),
+    # formal-city facades (rio_geo/buildings.py formal_style)
+    "M_FacadeWhite": (0.90, 0.89, 0.86), "M_FacadeCream": (0.88, 0.83, 0.70), "M_FacadeBeige": (0.78, 0.71, 0.60),
+    "M_FacadeGrey": (0.66, 0.67, 0.68), "M_FacadeConcrete": (0.56, 0.55, 0.52), "M_FacadeSalmon": (0.86, 0.66, 0.58),
+    "M_FacadeBlue": (0.64, 0.74, 0.80), "M_GroundFloor": (0.24, 0.25, 0.27), "M_RoofConcrete": (0.50, 0.49, 0.47),
 }
 GEN_TAG = "RioGenerated"
 
@@ -224,12 +228,32 @@ def main():
         ccfg = wcfg["shore_cap"]
         beaches = ref[ref["natural"].astype(str).eq("beach") & (ref.area >= ccfg["beach_min_area_m2"])]
         anchors = [(b["geom"], b["level_m"]) for b in water_bodies] + \
-                  [(g, ccfg["beach_level_m"]) for g in beaches.geometry]
+                  [(g, ccfg["beach_level_m"], "beach") for g in beaches.geometry]
         lowered = ter.cap_flat_shores(ground, anchors, ccfg)
         shore_cap = {"anchors": len(anchors), "beaches": sorted(set(beaches["name"].dropna())),
                      "cells_lowered_over_1m": int((lowered > 1.0).sum()), "max_lowered_m": round(float(lowered.max()), 2)}
         log(f"flat-shore cap: {len(anchors)} anchors; lowered {shore_cap['cells_lowered_over_1m']} cells by > 1 m "
             f"(max {shore_cap['max_lowered_m']} m)")
+        ff = CONFIG["roads"].get("flat_fronts") or {}
+        if ff.get("ground_names"):
+            names = edges["name"].map(rd._first) if "name" in edges else None
+            front = edges[names.isin(ff["ground_names"])] if names is not None else edges.iloc[:0]
+            nat = ref[ref["natural"].astype(str).isin(["wood", "scrub", "bare_rock", "grassland", "heath", "cliff"])
+                      | ref["landuse"].astype(str).isin(["forest", "meadow"])].geometry
+            protect = list(nat) + ([favela_union] if favela_union is not None else [])
+            low = ter.cap_front_roads(ground, list(front.geometry), ff,
+                                      footprints=list(buildings.loc[~buildings["informal"]].geometry), protect=protect)
+            shore_cap["front_roads_lowered_over_1m"] = int((low > 1.0).sum())
+            xs, ys = ground.coords()
+            big = np.argwhere(low > 8.0)
+            shore_cap["front_roads_lowered_over_8m"] = int(len(big))
+            if len(big):  # where the cap cut most: check these are rooftop residue, not real hills
+                order = np.argsort(-low[big[:, 0], big[:, 1]])[:2000:100]
+                shore_cap["front_roads_largest_cuts"] = [
+                    {"utm": [round(float(xs[c]), 1), round(float(ys[r]), 1)], "lowered_m": round(float(low[r, c]), 1),
+                     "z_after": round(float(ground.z[r, c]), 1)} for r, c in big[order]]
+            log(f"beachfront ground cap: {len(front)} edges; lowered {int((low > 1.0).sum())} cells by > 1 m "
+                f"(max {low.max():.1f} m)")
         wet = ter.carve_water(ground, [(b["geom"], b["level_m"]) for b in water_bodies], wcfg)
         log(f"inland water: {len(water_bodies)} bodies, {wet.mean():.1%} of the AOI; "
             + ", ".join(f"{b['name'] or b['kind']} @ {b['level_m']} m ({b['level_source']})"
@@ -476,6 +500,7 @@ def main():
     carriageways = [g.buffer(w / 2, cap_style="flat") for g, w in zip(drivable.geometry, drivable["width_m"])]
     tree = STRtree(carriageways)
     height_sources, conflicts, placed = {}, 0, 0
+    fstyle, style_counts = bcfg.get("formal_style", {}), {}
     house_rows = []  # placed footprints with their heights, for build_details.py (doors, wires, lookouts)
     for idx, r in buildings.iterrows():
         h, src = r["height_m"], r["height_src"]
@@ -489,13 +514,41 @@ def main():
             zg = terrain.sample(ring[:, 0], ring[:, 1])
             key = tile_of(poly.centroid.x, poly.centroid.y)
             pivot = (W + key[0] * tile_m, S + key[1] * tile_m)
-            mesh = bld.extrude(poly, zg.min() - bcfg["foundation_sink_m"], zg.max() + h, pivot)
+            base = zg.min() - bcfg["foundation_sink_m"]
+            mat = r.get("material")
+            style = None
+            if not isinstance(mat, str):
+                if r["informal"]:
+                    mat = "M_BuildingInformal"
+                elif fstyle.get("enabled"):
+                    style = bld.formal_style((str(r.get("osmid")), round(poly.centroid.x, 1)), h, poly.area, fstyle)
+                    mat = style["material"]
+                else:
+                    mat = "M_BuildingFormal"
+            band_top = zg.max() + style["ground_band_m"] if style and style["ground_band_m"] else None
+            mesh = bld.extrude(poly, band_top if band_top else base, zg.max() + h, pivot)
             if mesh is None:
                 continue
-            mat = r.get("material")
-            mat = mat if isinstance(mat, str) else ("M_BuildingInformal" if r["informal"] else "M_BuildingFormal")
             tiles[key]["Buildings"].add(mat, *mesh)
+            if band_top:  # darker shopfront / pilotis storey; its roof face is hidden inside the tower
+                bm = bld.extrude(poly, base, band_top, pivot)
+                if bm is not None:
+                    tiles[key]["Buildings"].add("M_GroundFloor", *bm)
             top = zg.max() + h
+            if style:
+                style_counts[mat] = style_counts.get(mat, 0) + 1
+                if style["parapet_m"]:
+                    ring = poly.difference(poly.buffer(-0.2, join_style="mitre"))
+                    if ring.geom_type == "Polygon":
+                        pm = bld.extrude(ring, top - 0.05, top + style["parapet_m"], pivot)
+                        if pm is not None:
+                            tiles[key]["Buildings"].add(mat, *pm)
+                if style["machine_room"]:
+                    room = bld.machine_room(poly, style["machine_room"][0], str(r.get("osmid")))
+                    rm = bld.extrude(room, top - 0.1, top + style["machine_room"][1], pivot) if room is not None else None
+                    if rm is not None:
+                        tiles[key]["Buildings"].add("M_RoofConcrete", *rm)
+                        style_counts["machine_rooms"] = style_counts.get("machine_rooms", 0) + 1
             tank_top, tank_at = top, None
             skey = (str(r.get("osmid")), round(poly.centroid.x, 1))
             if r.get("parapet") == True:  # noqa: E712 - low wall around the laje
@@ -527,7 +580,7 @@ def main():
                                "top": float(top), "roof_top": float(roof_top)})
             height_sources[src] = height_sources.get(src, 0) + 1
             placed += 1
-    log(f"buildings placed: {placed}; carriageway conflicts: {conflicts}")
+    log(f"buildings placed: {placed}; carriageway conflicts: {conflicts}; formal styles: {style_counts}")
     gpd.GeoDataFrame(house_rows, geometry="geometry", crs=PROJECTED_CRS).to_file(out / "houses.gpkg", driver="GPKG")
 
     # ---------------- write

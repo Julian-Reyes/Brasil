@@ -143,6 +143,13 @@ def solve_profiles(edges, nodes_xy, ground_fn, fixed_nodes, cfg, spacing=2.0, it
         g[idx] = ground_fn(pts[:, 0], pts[:, 1])
     # Coastal roads must never follow the synthetic seabed below the shoreline.
     g = np.maximum(g, cfg["min_height_m"])
+    # Beachfront avenues are near-flat in reality; residual rooftop signal in the DSM gave them 1-3 m humps.
+    ff = cfg.get("flat_fronts") or {}
+    if ff.get("names"):
+        names = set(ff["names"])
+        for (_, r), idx in zip(edges.iterrows(), ids):
+            if _first(r.get("name")) in names:
+                g[idx] = np.minimum(g[idx], ff["max_m"])
 
     rows, cols, vals, rhs = [], [], [], []
 

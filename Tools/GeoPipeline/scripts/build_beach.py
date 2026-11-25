@@ -26,6 +26,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from rio_geo import beach as bch  # noqa: E402
+from rio_geo import beach_life as life  # noqa: E402
 from rio_geo import terrain as ter  # noqa: E402
 from rio_geo.common import CONFIG, EXPORTS_DIR, PROJECT_DIR, RAW_DIR, aoi_bbox_utm, utm_to_ue, write_metadata  # noqa: E402
 from rio_geo.meshio import MeshBuilder, write_mtl  # noqa: E402
@@ -34,6 +35,11 @@ PALETTE = {
     "M_Sand": (0.86, 0.78, 0.58), "M_Calcadao": (0.86, 0.86, 0.83), "M_Ciclovia": (0.55, 0.12, 0.10),
     "M_Kiosk": (0.18, 0.42, 0.33), "M_KioskRoof": (0.93, 0.93, 0.90), "M_Posto": (0.92, 0.92, 0.90),
     "M_PostoCabin": (0.88, 0.32, 0.10), "M_PalmTrunk": (0.45, 0.35, 0.22), "M_PalmLeaf": (0.22, 0.48, 0.16),
+    # beach life (rio_geo/beach_life.py)
+    "M_UmbrellaRed": (0.85, 0.18, 0.15), "M_UmbrellaYellow": (0.95, 0.80, 0.15), "M_UmbrellaBlue": (0.15, 0.40, 0.80),
+    "M_UmbrellaGreen": (0.20, 0.62, 0.30), "M_UmbrellaWhite": (0.95, 0.95, 0.92), "M_UmbrellaOrange": (0.95, 0.50, 0.12),
+    "M_ChairFrame": (0.75, 0.76, 0.78), "M_Barraca": (0.55, 0.40, 0.25), "M_CourtLine": (0.10, 0.35, 0.85),
+    "M_NetPost": (0.30, 0.30, 0.32), "M_Net": (0.12, 0.12, 0.12),
 }
 
 
@@ -45,7 +51,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--aoi", required=True)
     args = ap.parse_args()
-    cfg, aoi_cfg = CONFIG["beach"], CONFIG["aois"][args.aoi]
+    aoi_cfg = CONFIG["aois"][args.aoi]
+    cfg = {**CONFIG["beach"], **aoi_cfg.get("beach", {})}  # per-AOI overrides: front_roads, beach_names, feature_set
     bbox = aoi_bbox_utm(args.aoi)
     exp = EXPORTS_DIR / args.aoi
     out = exp / "beach"
@@ -67,10 +74,11 @@ def main():
     edges = gpd.read_file(osm / "roads.gpkg", layer="edges")
     cycleways = edges[edges["highway"].astype(str).str.contains("cycleway")].geometry.union_all()
     features = None
-    if (osm / "beach.gpkg").exists():
-        features = gpd.read_file(osm / "beach.gpkg", layer="features")
+    fset = cfg.get("feature_set", "beach")
+    if (osm / f"{fset}.gpkg").exists():
+        features = gpd.read_file(osm / f"{fset}.gpkg", layer="features")
     else:
-        log("WARNING: no beach.gpkg (run scripts/fetch_beach.py): no Postos, procedural kiosks only")
+        log(f"WARNING: no {fset}.gpkg (run scripts/fetch_beach.py --set {fset}): no Postos, procedural kiosks only")
     # Postos are mapped inconsistently in OSM: 7-10 and 12 as amenity=toilets named "Posto N", Posto 11 only as a
     # building. Add named Posto buildings ("Posto <number>" only, so fuel stations etc. are ignored).
     blds = gpd.read_file(osm / "buildings.gpkg")
@@ -100,6 +108,14 @@ def main():
     dbg = stats.pop("_debug")
     log(f"geometry: {len(tm.tiles)} tiles, {len(postos)} postos, "
         f"{sum('xyz' in k for k in kiosks)} kiosks, {stats['palms']} palms")
+    tm_life = bch.TiledMesh(bbox, aoi_cfg["tile_size_m"], MeshBuilder)
+    life_stats = {}
+    if cfg.get("life", {}).get("enabled"):
+        V, off = dbg["V"], dbg["off"]
+        life_stats = life.build_life(cl, dbg, lambda i, o: bch._sand_z(V, off, i, o), tm_life, cfg["life"],
+                                     postos, kiosks, features)
+        dbg["life"] = life_stats.pop("_debug")
+        log(f"beach life: {life_stats}")
 
     # ---- write meshes + palette
     write_mtl(out / "beach.mtl", PALETTE)
@@ -117,7 +133,17 @@ def main():
         actors.append({"asset": name, "kind": "Beach", "obj": str(out / f"{name}.obj"), "label": f"GEN_T{i}{j}_Beach",
                        "location_cm": list(utm_to_ue(pe, pn, 0.0)), "tile": [i, j], "pivot_utm": [float(pe), float(pn)],
                        "materials": sorted(mb.parts), "triangles": mb.triangle_count, "collision": "complex_as_simple"})
-    manifest["actors"] = [a for a in manifest["actors"] if a["kind"] != "Beach"] + actors
+    for (i, j), mb in sorted(tm_life.tiles.items()):
+        if not mb.triangle_count:
+            continue
+        name = f"SM_T{i}{j}_BeachLife"
+        mb.write_obj(out / f"{name}.obj", None)
+        pe, pn = tm_life.pivot((i, j))[:2]
+        actors.append({"asset": name, "kind": "BeachLife", "obj": str(out / f"{name}.obj"),
+                       "label": f"GEN_T{i}{j}_BeachLife", "location_cm": list(utm_to_ue(pe, pn, 0.0)), "tile": [i, j],
+                       "pivot_utm": [float(pe), float(pn)], "materials": sorted(mb.parts),
+                       "triangles": mb.triangle_count, "collision": "none"})
+    manifest["actors"] = [a for a in manifest["actors"] if a["kind"] not in ("Beach", "BeachLife")] + actors
     manifest["markers"] = [m for m in manifest.get("markers", []) if m.get("kind") != "Posto"] + [{"name": p["name"], "kind": "Posto", "utm": p["xyz"], "location_cm": list(utm_to_ue(*p["xyz"])),
                             "source": p["source"]} for p in postos]
     (exp / "manifest.json").write_text(json.dumps(manifest, indent=2))
@@ -126,7 +152,7 @@ def main():
     saved.write_text(json.dumps(manifest, indent=2))
 
     report = {"aoi": args.aoi, "centreline_m": round(cl.length, 1), "centreline_edges": len(used), "trimmed_ends_m": trimmed,
-              "profile_measured_fraction": prof["measured"], "canal_spans_u": prof["canal"], **stats,
+              "profile_measured_fraction": prof["measured"], "canal_spans_u": prof["canal"], **stats, "life": life_stats,
               "postos": [{k: p[k] for k in ("name", "source", "xyz")} for p in postos],
               "kiosks": {"osm": sum(k["source"] != "procedural" and "xyz" in k for k in kiosks),
                          "procedural": sum(k["source"] == "procedural" and "xyz" in k for k in kiosks),
@@ -160,6 +186,10 @@ def preview(path, cl, prof, sand, coast, postos, kiosks, dbg):
                 ring = np.vstack([cl.at(lo), cl.at(hi)[::-1]])
                 ax.fill(*ring.T, color=col, lw=0, alpha=0.9)
             ax.plot(*dbg["palms"].T, "o", color="#3a7d24", ms=3)
+            if "life" in dbg:
+                ax.plot(*dbg["life"]["umbrellas"].T, ".", color="#d9452b", ms=2)
+                ax.plot(*dbg["life"]["barracas"].T, "^", color="#7a5230", ms=5)
+                ax.plot(*dbg["life"]["courts"].T, "s", color="#1f5ad6", ms=6, mfc="none")
         ax.plot(*cl.at(dbg["calc_out"]).T, color="#b07b2a", lw=0.8)
         ax.plot(*cl.at(dbg["water"]).T, color="#2a6fb0", lw=0.8, ls="--")
         for a, b in bch._runs(dbg["canal"]):

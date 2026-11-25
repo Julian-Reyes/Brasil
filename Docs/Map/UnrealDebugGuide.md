@@ -235,3 +235,33 @@ What to look for:
   should read as a small largo, not a hole.
 * **Poles:** 395 poles, all with a power span. 24 poles are taller (up to 12.5 m) so a span clears a roof, 61
   poles were added at street bends; check the tall ones don't look odd and no added pole stands in a doorway.
+
+## Beach life, facades, Copacabana (2026-11-25, Session 12)
+
+Renders: `Docs/Map/screenshots/beach_life_posto9_aerial.png`, `beach_life_posto9_sand.png`,
+`ipanema_facades_aerial.png`, `copacabana_aerial.png`, `copacabana_posto3.png`. Ground z below is the terrain;
+the sand / calcadao meshes sit up to ~1 m above it, so add ~2 m for a PlayerStart.
+
+| What | UTM | UE (cm) | terrain z |
+|---|---|---|---|
+| Posto 9, sand by the umbrellas | E684076 N7456780 | (-42400, 422000, -2) | 0.0 m |
+| Vieira Souto facades (street) | E683300 N7456905 | (-120000, 409500, 90) | 0.9 m |
+| Delfim Moreira west end (Dois Irmaos foot kept) | E681560 N7456640 | (-294000, 436000, 514) | 5.1 m |
+| Copacabana Posto 3, sand | E686389 N7458600 | (188900, 240000, 36) | 0.4 m |
+| Calcadao at Posto 3 (suggested `PlayerStart_Copacabana`) | E686420 N7458680 | (192000, 232000, 93) | 0.9 m |
+| Posto 6: Atlantica x Rua Francisco Sa hump (not fixed) | E685547 N7457247 | (104700, 375300, 1091) | 10.9 m |
+| Block behind Posto 5 (ground cut ~30 m) | E685630 N7457920 | (113000, 308000, 605) | 6.0 m |
+| Tunel Novo portal slope (ground cut 33 m) | E687360 N7459367 | (286000, 163300, 757) | 7.6 m |
+| Leme end / Morro do Leme (kept) | E688232 N7459367 | (373200, 163300, 5768) | 57.7 m |
+
+What to look at:
+* **Beach life** (`BeachLife` tiles, no collision): umbrella / chair / barraca scale against the template
+  character; do you want collision on barracas and nets; frame rate with ~2,000 umbrellas in view at Posto 9.
+* **Courts:** nets at 2.43 m (volley) / 2.2 m (footvolley), tape lines flush on the sand (z-fighting?).
+* **Sand vs terrain:** no grey ground strip in the surf any more; check the calcadao skirt (0.6 m) where the
+  calcadao stands up to 3.9 m above the terrain in Copacabana (gaps under the edge?).
+* **Facades:** colour mix, the dark ground-floor band, machine rooms; Copacabana kiosk canopies now 3 m.
+* **Copacabana ground:** the block behind Posto 5 should be flat street level; the Tunel Novo slope may have
+  been cut too much (real hill there?); Morro do Leme and Chapeu Mangueira must be intact.
+* **Posto 6 hump:** Av. Atlantica rises to ~11 m at Rua Francisco Sa (Problem 2's mechanism). Option A fixes it in
+  the pipeline (Atlantica 1.0-3.7 m); decide together with Problem 2.

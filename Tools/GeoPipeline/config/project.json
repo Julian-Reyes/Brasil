@@ -39,6 +39,16 @@
       "unreal_folder": "Test_LeblonArpoador",
       "always_loaded": true
     },
+    "test_copacabana": {
+      "description": "Copacabana and Leme test: Av. Atlantica and the beach from Posto 6 / Forte de Copacabana to Leme, back to Cantagalo / Pavao-Pavaozinho and Rua Barata Ribeiro.",
+      "bbox_utm": [685000.0, 7456500.0, 688500.0, 7460000.0],
+      "tile_size_m": 500.0,
+      "terrain_grid_m": 2.5,
+      "unreal_folder": "Test_Copacabana",
+      "always_loaded": true,
+      "beach": {"front_roads": ["Avenida Atlântica"], "beach_names": ["Praia de Copacabana", "Praia do Leme"],
+                "feature_set": "copacabana"}
+    },
     "test_lagoa": {
       "description": "Lagoa Rodrigo de Freitas: the lagoon with its islands, the Epitacio Pessoa / Borges de Medeiros ring, Corte do Cantagalo, Jardim de Alah canal, Parque dos Patins, edges of Humaita / Jardim Botanico / Gavea racecourse.",
       "bbox_utm": [682000.0, 7457000.0, 685000.0, 7460000.0],
@@ -94,6 +104,12 @@
     "max_grade": {"_doc": "rise/run; null = follow terrain. Vidigal/Santa Teresa streets genuinely reach ~25-30%.",
                   "major": 0.12, "minor": 0.30, "path": null, "steps": null},
     "min_height_m": 1.0,
+    "flat_fronts": {"_doc": "Beachfront avenues: the ground they follow is capped at max_m (rio_geo/roads.py solve_profiles); junctions stay exact.",
+                    "names": ["Avenida Delfim Moreira", "Avenida Vieira Souto", "Avenida Francisco Bhering",
+                              "Avenida Atlântica"], "max_m": 1.6,
+                    "ground_names": ["Avenida Delfim Moreira", "Avenida Vieira Souto", "Avenida Atlântica"],
+                    "ground_band_m": 150.0, "ground_blend_m": 60.0, "ground_slope": 0.05,
+                    "ground_coverage_window_m": 60.0, "ground_coverage_full": 0.3},
     "max_slope_weight": 10000.0,
     "clamp_min_height": false,
     "surface_offset_m": 0.06,
@@ -120,7 +136,22 @@
     "formal_large_levels": [8, 13],
     "formal_small_levels": [2, 4],
     "informal_levels": [2, 4],
-    "foundation_sink_m": 0.5
+    "foundation_sink_m": 0.5,
+    "roof_canopy_m": 3.0,
+    "tiny_footprint_m2": 25.0,
+    "formal_style": {
+      "_doc": "Formal-city variety (rio_geo/buildings.py formal_style): facade colour weights, darker ground-floor band, parapet, rooftop machine room / reservoir. Windows and balconies are for the Unreal material pass.",
+      "enabled": true,
+      "facades": {"M_FacadeWhite": 0.28, "M_FacadeCream": 0.2, "M_FacadeBeige": 0.16, "M_FacadeGrey": 0.13,
+                  "M_FacadeConcrete": 0.1, "M_FacadeSalmon": 0.08, "M_FacadeBlue": 0.05},
+      "ground_band_m": 3.5,
+      "ground_band_min_height_m": 7.0,
+      "parapet_m": 1.0,
+      "machine_room_min_height_m": 12.0,
+      "machine_room_min_area_m2": 120.0,
+      "machine_room_frac": [0.08, 0.2],
+      "machine_room_h_m": [2.5, 4.0]
+    }
   },
 
   "water": {
@@ -143,6 +174,8 @@
       "slope": 0.04,
       "bank_m": 0.6,
       "beach_level_m": 0.5,
+      "beach_top_m": 0.6,
+      "beach_bottom_m": -0.4,
       "beach_min_area_m2": 20000.0
     }
   },
@@ -151,6 +184,17 @@
     "_doc": "scripts/fetch_beach.py --set <name>: point features queried in a strip (pad_m) around the anchor polygons.",
     "beach": {
       "anchor_names": ["Praia do Leblon", "Praia de Ipanema", "Praia do Arpoador"],
+      "pad_m": 150.0,
+      "tags": {
+        "emergency": ["lifeguard", "lifeguard_tower", "lifeguard_base", "lifeguard_platform"],
+        "shop": ["kiosk"],
+        "amenity": ["fast_food", "bar", "cafe", "kiosk", "shower", "toilets", "drinking_water", "lifeguard"],
+        "leisure": ["pitch", "fitness_station", "playground"],
+        "man_made": ["tower", "lifeguard_tower"]
+      }
+    },
+    "copacabana": {
+      "anchor_names": ["Praia de Copacabana", "Praia do Leme"],
       "pad_m": 150.0,
       "tags": {
         "emergency": ["lifeguard", "lifeguard_tower", "lifeguard_base", "lifeguard_platform"],
@@ -235,7 +279,23 @@
     "kiosk": {"size_m": [3.2, 3.2, 2.6], "roof_m": [4.6, 4.6, 0.25], "fill_gap_m": 350.0, "offset_from_sand_edge_m": 1.5},
     "posto": {"base_m": [6.0, 4.0, 3.0], "cabin_m": [3.0, 3.0, 2.4], "column_m": 1.2, "cabin_floor_m": 6.0},
     "palm": {"spacing_m": 12.0, "jitter_m": 2.0, "height_m": [8.0, 12.0], "clear_m": 6.0,
-             "offset_from_sand_edge_m": 0.9, "fronds": 7, "frond_length_m": 3.2}
+             "offset_from_sand_edge_m": 0.9, "fronds": 7, "frond_length_m": 3.2},
+    "life": {
+      "_doc": "Beach life (rio_geo/beach_life.py): barracas with their umbrellas / chairs / towels, volleyball and footvolley courts. Kind BeachLife, no collision. Density peaks at the busy Postos.",
+      "enabled": true,
+      "density_base": 0.3,
+      "posto_density": {"Posto 7": 0.45, "Posto 8": 0.75, "Posto 9": 0.95, "Posto 10": 0.85, "Posto 11": 0.6, "Posto 12": 0.5,
+                        "Posto 1": 0.5, "Posto 2": 0.7, "Posto 3": 0.6, "Posto 4": 0.7, "Posto 5": 0.65, "Posto 6": 0.6},
+      "posto_sigma_m": 300.0,
+      "barraca": {"spacing_m": 36.0, "jitter_m": 5.0, "offset_frac": 0.22, "min_from_sand_edge_m": 20.0,
+                  "min_sand_width_m": 45.0, "presence_gain": 1.6, "clear_m": 9.0,
+                  "size_m": [2.4, 1.4, 1.05], "roof_m": [3.0, 3.0], "roof_h_m": [2.3, 2.6]},
+      "umbrella": {"col_m": 4.5, "row_m": 4.8, "first_row_m": 4.0, "jitter_m": 1.0, "keep_from_water_m": 14.0,
+                   "near_weight": 0.55, "clear_m": 5.0, "radius_m": [0.95, 1.2], "height_m": [2.0, 2.3], "tilt_deg": 14.0,
+                   "home_colour_p": 0.75, "chairs": [0.6, 2.4], "towel_only_p": 0.18},
+      "courts": {"spacing_m": 160.0, "jitter_m": 25.0, "from_sand_edge_m": 4.0, "clear_m": 6.0, "footvolley_p": 0.5,
+                 "volley_m": [16.0, 8.0], "footvolley_m": [18.0, 9.0], "net_h_m": {"volley": 2.43, "footvolley": 2.2}}
+    }
   },
 
   "details": {

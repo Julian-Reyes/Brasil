@@ -245,7 +245,12 @@ def cap_flat_shores(hf, anchors, ccfg):
     Near a flat shore (lagoon / lake / large sand beach - never plain coastline, so cliffs are untouched)
     the ground may rise at most  level + base_m + slope * distance; full effect within band_m, fading out over
     blend_m. Land in the same zone is also kept at least bank_m above the water, so the water mesh never floats
-    above its own bank. anchors: [(polygon, level)]. Returns (z_before - z_after) for statistics."""
+    above its own bank. anchors: [(polygon, level)] or [(polygon, level, "beach")].
+
+    Beaches (third element "beach") get no bank floor: their outside is partly open sea, and flooring the seabed
+    there raised a 30-40 m strip of fake land at level + bank_m in the surf. Instead the sand itself, which the
+    DSM sea test usually classes as sea (a 2-5 m pit under the beach), becomes a ramp from beach_top_m on its
+    land side down to beach_bottom_m on its sea side. Returns (z_before - z_after) for statistics."""
     import shapely
     xs, ys = hf.coords()
     X, Y = np.meshgrid(xs, ys)
@@ -253,7 +258,10 @@ def cap_flat_shores(hf, anchors, ccfg):
     cap = np.full(hf.shape, np.inf)
     floor = np.full(hf.shape, -np.inf)
     weight = np.zeros(hf.shape)
-    for poly, level in anchors:
+    beach_fill = []
+    for anchor in anchors:
+        poly, level = anchor[:2]
+        is_beach = len(anchor) > 2 and anchor[2] == "beach"
         w, s, e, n = poly.bounds
         win = (X >= w - reach) & (X <= e + reach) & (Y >= s - reach) & (Y <= n + reach)
         if not win.any():
@@ -268,12 +276,74 @@ def cap_flat_shores(hf, anchors, ccfg):
         wt = 1 - t * t * (3 - 2 * t)
         better = c < cap
         cap = np.where(better & (wt > 0), c, cap)
-        floor = np.where((wt > 0) & ~inside, np.maximum(floor, level + ccfg["bank_m"]), floor)
+        if is_beach:
+            beach_fill.append((inside, win))
+        else:
+            floor = np.where((wt > 0) & ~inside, np.maximum(floor, level + ccfg["bank_m"]), floor)
         weight = np.maximum(weight, np.where(wt > 0, wt, 0))
     before = hf.z.copy()
     capped = np.minimum(hf.z, np.where(np.isfinite(cap), cap, hf.z))
     capped = np.maximum(capped, np.where(np.isfinite(floor), floor, capped))
     hf.z = hf.z * (1 - weight) + capped * weight
+    top, bottom = ccfg.get("beach_top_m", 0.6), ccfg.get("beach_bottom_m", -0.4)
+    for inside, win in beach_fill:
+        rows, cols = np.flatnonzero(win.any(axis=1)), np.flatnonzero(win.any(axis=0))
+        sl = (slice(rows[0], rows[-1] + 1), slice(cols[0], cols[-1] + 1))
+        ins, z0 = inside[sl], before[sl]
+        land_out, sea_out = ~ins & (z0 >= 0), ~ins & (z0 < 0)
+        if not land_out.any() or not sea_out.any():
+            continue
+        dl = ndimage.distance_transform_edt(~land_out)
+        ds = ndimage.distance_transform_edt(~sea_out)
+        ramp = bottom + (top - bottom) * ds / np.maximum(ds + dl, 1e-6)
+        hf.z[sl] = np.where(ins, ramp, hf.z[sl])
+    return before - hf.z
+
+
+def cap_front_roads(hf, lines, fcfg, footprints=None, protect=None):
+    """Beachfront ground cap. Behind dense beachfront towers (south Copacabana) the DSM keeps 10-16 m of rooftop
+    signal 30-60 m inland, where the real plain is 2-4 m; the beach-based flat-shore cap does not reach that far.
+    Within ground_band_m of the named avenues (flat-ended buffers, so headlands past the road ends - Forte de
+    Copacabana, Morro do Leme - are untouched) the ground may rise at most max_m + ground_slope x distance,
+    fading out over ground_blend_m. Only lowers. Returns (z_before - z_after).
+
+    Real hills inside the band (Morro do Leme, the foot of Dois Irmaos at the Mirante do Leblon, the slopes at
+    Tunel Novo) must keep their height. The residue comes from buildings, so the cut is scaled by the formal
+    building footprint coverage within ground_coverage_window_m (full at ground_coverage_full); `protect`
+    polygons (natural cover, favelas) are never cut."""
+    import shapely
+    if not lines:
+        return np.zeros(hf.shape)
+    band, blend = fcfg["ground_band_m"], fcfg["ground_blend_m"]
+    roads = shapely.union_all(lines)
+    zone = shapely.union_all([shapely.buffer(g, band + blend, cap_style="flat") for g in lines])
+    xs, ys = hf.coords()
+    X, Y = np.meshgrid(xs, ys)
+    w, s, e, n = zone.bounds
+    win = (X >= w) & (X <= e) & (Y >= s) & (Y <= n)
+    inside = np.zeros(hf.shape, bool)
+    inside[win] = shapely.contains_xy(zone, X[win], Y[win])
+    if not inside.any():
+        return np.zeros(hf.shape)
+    d = shapely.distance(shapely.points(X[inside], Y[inside]), roads)
+    cap = fcfg["max_m"] + fcfg["ground_slope"] * d
+    t = np.clip((d - band) / blend, 0, 1)
+    wt = 1 - t * t * (3 - 2 * t)
+    if footprints is not None and len(footprints):
+        from rasterio.features import rasterize
+        from rasterio.transform import from_origin
+        # hf rows run south -> north (row 0 = south edge); rasterize top-down, then flip
+        tf = from_origin(hf.west - hf.step / 2, hf.south + (hf.shape[0] - 0.5) * hf.step, hf.step, hf.step)
+        cov = rasterize(((g, 1) for g in footprints), out_shape=hf.shape, transform=tf, fill=0, dtype="uint8")[::-1]
+        k = max(3, int(round(fcfg["ground_coverage_window_m"] / hf.step)) | 1)
+        cov = ndimage.uniform_filter(cov.astype(float), size=k)
+        wt = wt * np.clip(cov[inside] / fcfg["ground_coverage_full"], 0, 1)
+    if protect is not None and len(protect):
+        keep = shapely.contains_xy(shapely.union_all(list(protect)), X[inside], Y[inside])
+        wt = np.where(keep, 0.0, wt)
+    before = hf.z.copy()
+    z = hf.z[inside]
+    hf.z[inside] = z * (1 - wt) + np.minimum(z, cap) * wt
     return before - hf.z
 
 

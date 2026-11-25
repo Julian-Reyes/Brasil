@@ -31,7 +31,10 @@ AOIs are defined in `config/project.json` (`full`, `test_leblon_vidigal`, `test_
 
 1. **Ground model.** Copernicus is a surface model (rooftops, canopy). Subtract the mapped building volume
    (OSM heights, blurred to radar resolution), then on flat lowland only take the minimum with a 150 m
-   morphological opening. Sea cells become a sloping seabed.
+   morphological opening. Sea cells become a sloping seabed. Near lagoons and large beaches a flat-shore cap
+   limits the ground (`water.shore_cap`); beach sand becomes a ramp from `beach_top_m` to `beach_bottom_m`.
+   Along the beachfront avenues (`roads.flat_fronts.ground_names`) the ground is capped at
+   `max_m + ground_slope x distance` within `ground_band_m` (residual rooftop signal behind Copacabana's towers).
 2. **Road vertical alignment.** Least-squares solve over the whole network, per tier (arterials, then local
    streets, then footways/steps). Shared junction nodes are single unknowns, so intersections are exact. Grades
    are limited per class by iterative reweighting (`roads.max_grade`). Each lower tier follows the terrain
@@ -41,7 +44,11 @@ AOIs are defined in `config/project.json` (`full`, `test_leblon_vidigal`, `test_
    (`tunnel=yes`) are skipped and listed in the report.
 4. **Meshes.** 500 m tiles: 2 m terrain grid, road ribbons with skirts (realistic widths from OSM
    `width`/`lanes`/class), extruded building footprints seated on the terrain. Placeholder heights come from OSM
-   `height`/`building:levels`, otherwise deterministic per-OSM-id defaults (reproducible across runs).
+   `height`/`building:levels`, otherwise deterministic per-OSM-id defaults (reproducible across runs);
+   `building=roof` canopies get `roof_canopy_m`, footprints under `tiny_footprint_m2` one storey. Formal-city
+   buildings get a facade colour (`M_Facade*`), a darker ground-floor band (`M_GroundFloor`), a parapet and a
+   rooftop machine room (`M_RoofConcrete`) per `buildings.formal_style`; re-import `SM_BlockoutPalette.obj`
+   with materials once for the new slots.
 5. **Verification.** `report.json`: road-surface-vs-terrain gaps, steepest drivable segments, building/road
    conflicts, height-source counts, triangle counts.
 
@@ -131,6 +138,18 @@ has no material asset.
 
 Postos are also written to `manifest.json` -> `markers` (name + location) for spawn points / gameplay; the
 importer ignores them for now.
+
+**Per-AOI beaches:** `aois.<aoi>.beach` overrides `beach` keys, e.g. `test_copacabana` uses
+`front_roads: ["Avenida Atlântica"]`, `beach_names: ["Praia de Copacabana", "Praia do Leme"]` and
+`feature_set: "copacabana"` (`fetch_beach.py --set copacabana` writes `copacabana.gpkg`).
+
+**Beach life** (`rio_geo/beach_life.py`, `beach.life` in the config; written by `build_beach.py`): barracas
+(vendor stalls) every ~36 m on a line ~22% of the way across the sand, each with a field of umbrellas, folding
+chairs and towels seaward of it (mostly in the stall's colour), and volleyball / footvolley courts on the open
+sand next to the calcadao (OSM `sport=*volley*` pitches first, then every ~160 m). Occupancy peaks at the busy
+Postos (`posto_density`). Meshes `beach/SM_T<i><j>_BeachLife.obj`, kind `BeachLife`, **no collision**. New
+material slots (`M_Umbrella*`, `M_ChairFrame`, `M_Barraca`, `M_CourtLine`, `M_NetPost`, `M_Net`) are in
+`SM_BeachPalette.obj`: re-import it with materials once.
 
 ## Lake shore promenade (`scripts/build_shore.py`)
 

@@ -26,6 +26,10 @@ def building_height(row, informal, cfg):
     if lv and 1 <= lv <= 60:
         return lv * storey + 0.5, "osm:levels"
     key = row.get("osmid", row.name)
+    if str(row.get("building")) == "roof":  # canopies: beach kiosk roofs, fuel stations, market covers
+        return cfg.get("roof_canopy_m", 3.0), "default:roof"
+    if not informal and row.geometry.area < cfg.get("tiny_footprint_m2", 0.0):  # kiosks, booths, guard huts
+        return storey + 0.5, "default:tiny"
     if informal:
         lo, hi = cfg["informal_levels"]
     elif row.geometry.area >= cfg["formal_large_footprint_m2"]:
@@ -74,4 +78,36 @@ def footprint_polygons(geom):
     return []
 
 
-__all__ = ["building_height", "extrude", "footprint_polygons", "Polygon"]
+def formal_style(key, height, area, cfg):
+    """Facade material and roof extras for a formal-city building, deterministic per key.
+    Returns {"material", "ground_band_m" (0 = none), "parapet_m", "machine_room": (frac, height_m) or None}."""
+    names, weights = zip(*cfg["facades"].items())
+    w = np.cumsum(weights) / np.sum(weights)
+    mat = names[int(np.searchsorted(w, stable_unit((key, "facade"))))]
+    band = cfg["ground_band_m"] if height >= cfg["ground_band_min_height_m"] and area >= 40.0 else 0.0
+    room = None
+    if height >= cfg["machine_room_min_height_m"] and area >= cfg["machine_room_min_area_m2"]:
+        lo, hi = cfg["machine_room_frac"]
+        hlo, hhi = cfg["machine_room_h_m"]
+        room = (lo + (hi - lo) * stable_unit((key, "room")), hlo + (hhi - hlo) * stable_unit((key, "room_h")))
+    parapet = cfg["parapet_m"] if height >= cfg["ground_band_min_height_m"] else 0.0
+    return {"material": mat, "ground_band_m": band, "parapet_m": parapet, "machine_room": room}
+
+
+def machine_room(poly, frac, key):
+    """Rooftop box (lift machine room / water reservoir): the footprint scaled by sqrt(frac) about a point
+    shifted off-centre, kept inside the roof with a 1 m margin. None if it does not fit."""
+    from shapely import affinity
+    k = float(np.sqrt(frac))
+    inner = poly.buffer(-1.0)
+    if inner.is_empty:
+        return None
+    c = inner.representative_point()
+    room = affinity.scale(poly.minimum_rotated_rectangle, k, k, origin=c)
+    room = room.intersection(inner)
+    if room.is_empty or room.geom_type != "Polygon" or room.area < 6.0:
+        return None
+    return room
+
+
+__all__ = ["building_height", "formal_style", "machine_room", "extrude", "footprint_polygons", "Polygon"]
