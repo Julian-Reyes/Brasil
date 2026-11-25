@@ -78,6 +78,10 @@ player's house. Still a stylised blockout, to be judged on the walk-around test.
 
 **Outside the hub: realistic Vidigal.** Dense informal housing on the real street / beco / stair network
 (procedural infill where OSM is under-mapped), and Vidigal's real iconic places where they exist.
+**Street life details, 2026-11-25 (MacBook, blockout):** every favela house has a door on its street / beco
+side; poles, power lines and a tangle of cables over the lanes and becos; the lanes inside the favela are one car
+wide (Av. Pres. Joao Goulart stays wider); four mirantes (small decks with a railing and bench) where a beco or
+lane looks over the roofs to the sea.
 
 **Rules for the compressed map:**
 

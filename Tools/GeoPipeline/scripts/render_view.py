@@ -25,7 +25,7 @@ COLOURS = {
     "M_BuildingFormal": (0.86, 0.85, 0.80), "M_WaterTank": (0.12, 0.35, 0.80), "M_Sea": (0.15, 0.35, 0.55),
     "M_Bench": (0.42, 0.29, 0.16), "M_TreeTrunk": (0.40, 0.30, 0.20), "M_TreeCrown": (0.20, 0.48, 0.20),
 }
-KINDS = ("Terrain", "Roads", "Buildings", "Places", "Beach", "Shore", "Water")
+KINDS = ("Terrain", "Roads", "Buildings", "Places", "Details", "Wires", "Beach", "Shore", "Water")
 
 
 def palette():
@@ -35,11 +35,11 @@ def palette():
         cols.update({k: v for k, v in B.items() if k.startswith("M_House")})
     except Exception:  # noqa: BLE001 - optional
         pass
-    try:
-        from build_places import PALETTE as P  # noqa: PLC0415
-        cols.update(P)
-    except Exception:  # noqa: BLE001 - optional
-        pass
+    for mod in ("build_places", "build_details"):
+        try:
+            cols.update(__import__(mod).PALETTE)
+        except Exception:  # noqa: BLE001 - optional
+            pass
     return cols
 
 
@@ -124,6 +124,11 @@ def render(tris, mats, eye, target, size=(1400, 900), fov_deg=55.0, near=0.3):
         m = inside & (z < sub)
         sub[m] = z[m]
         img[y0:y1 + 1, x0:x1 + 1][m] = rgb[k]
+    # the sea (sea level z = 0, endless): empty pixels whose view ray goes down to it
+    Y, X = np.mgrid[0:H, 0:W] + 0.5
+    d = f[None, None, :] + ((X - W / 2) / fpx)[..., None] * r + (-(Y - H / 2) / fpx)[..., None] * u
+    sea = np.isinf(zbuf) & (d[..., 2] < 0) & (eye[2] > 0)
+    img[sea] = cols.get("M_Sea", (0.15, 0.35, 0.55))
     return img
 
 

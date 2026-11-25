@@ -193,6 +193,18 @@ def frontage_candidates(zone, edges_with_width, cfg, label):
     return out
 
 
+def infill_zones(favelas, hubs, bbox):
+    """[(name, polygon[, options])]: OSM favela polygons, plus each designed hub's surroundings (lower Vidigal lies
+    outside OSM's favela outline) minus the parts already inside a favela polygon, so nothing is filled twice."""
+    union = favelas.geometry.union_all() if len(favelas) else None
+    zones = [(str(r.get("name")), r.geometry) for _, r in favelas.iterrows()]
+    for hub in hubs:
+        if hub.get("infill_radius_m") and box(*bbox).contains(Point(hub["center"])):
+            zone = Point(hub["center"]).buffer(hub["infill_radius_m"]).difference(union or Point(0, 0))
+            zones.append((f"{hub['name']} surroundings", zone, {"max_levels": hub.get("infill_max_levels")}))
+    return zones
+
+
 def generate_infill(favelas, mapped_buildings, edges_with_width, dsm, dsm_tf, bbox, cfg):
     """Returns (list of dicts with geometry / levels / favela / lot id / style, per-favela report)."""
     aoi = box(*bbox)

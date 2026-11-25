@@ -561,3 +561,74 @@ lots); Rocinha +5,717; Chacara do Ceu +382; hub surroundings +242. 2.49 M triang
 
 Regression: `test_lagoa` (+ shore, places) and `test_leblon_arpoador` (+ beach, shore, places) rebuild. Pavao-
 Pavaozinho gets +119 houses in the Lagoa area and +512 in the beach area (was +526), both now at 55% coverage.
+
+# Session 8 (2026-11-25, MacBook): Vidigal street details (step 5)
+
+Branch `macbook/vidigal-details` (from `macbook/vidigal-infill`). Step 5 of the Vidigal plan. **Nothing seen in
+the editor.** Renders: `Docs/Map/screenshots/vidigal_details_{street,beco,aerial,lookout_view}.png`; spots in
+`UnrealDebugGuide.md` -> "Vidigal street details".
+
+What changed:
+
+* **Narrow car access** (`roads.favela_lanes`, `rio_geo/roads.py narrow_in_zones`, called at the top of
+  `build_area.py`): drivable streets mostly (>= 50%) inside an OSM favela polygon with no mapped `width` get a
+  `width` tag: residential / unclassified 4.2 m, living street 3.4 m, service 3.0 m; Av. Pres. Joao Goulart 6.0 m
+  (by name; it was 7 m like a city street). Streets within 70 m of a hub centre keep their width. Vidigal AOI:
+  7.1 km residential, 1.6 km service, 0.6 km living street narrowed. Everything downstream (infill clearance, road
+  carve, poles) uses the new widths.
+* **New script `scripts/build_details.py`** (run after `build_places.py`; `rio_geo/details.py`, config `details`):
+  reads `houses.gpkg` (new `build_area.py` output: every placed footprint with ground / roof heights, informal
+  flag, frontage), `road_graph_source.json` and the Terrain tiles. Writes `details/SM_T*_Details.obj` (complex
+  collision) and `details/SM_T*_Wires.obj` (no collision), `details/SM_DetailsPalette.obj` (**one-time import
+  with materials**), `details/details_report.json`, and `lookout` markers in the manifest.
+  * **Doors:** each favela house gets one on the wall facing its nearest street / beco / stair whose outside is
+    not another house (probe 0.25 and 0.7 m out); 0.9 x 2.1 m, bottom at the ground 0.4 m outside (clamped to the
+    wall's ground range), 7 cm proud, with a concrete step. On car streets 30% of the houses with a >= 3.4 m wall
+    get a 2.6 m roller shutter instead. Vidigal AOI: 12,155 doors, 487 shutters, 354 houses enclosed (no free
+    wall, no door).
+  * **Poles and wires:** concrete poles (0.24 m, 8.5-9.5 m, crossarm, 20% with a transformer) every ~22 m on one
+    side of each favela car street, on the shoulder (never on a carriageway, a footway / stair, within 0.25 m of
+    a house, or on hub terraces / stairs / lookout decks), >= 11 m apart. Each pole links to up to 3 neighbours
+    within 42 m (shortest first) with 3 power lines on the crossarm and 2-5 sagging telecom cables 3 m lower, plus
+    0-2 short loops hanging off the pole. Spans are dropped if a cable would pass through a roof or dip below 4 m
+    (power) / 2.6 m (telecom) over the ground. Service drops: 60% of the favela houses within 24 m of a pole get a
+    cable to their wall (max 12 per pole). Becos / stairs: anchors on the house walls every ~7 m, alternating
+    sides, 3-4.6 m above the path; 1-3 cables between consecutive anchors; the chain is tied to the nearest pole
+    (<= 30 m). Cables are 2.4 cm square tubes, 8 segments per span. Vidigal AOI: 344 poles (35 without a power
+    span), 286 spans, 858 power + 898 telecom cables, 460 drops, 1,195 beco cables; 176 k triangles in Wires.
+  * **Lookouts:** sited in `build_area.py` (`lookout_sites`, after the road solve, before the building meshes):
+    samples every 6 m along becos / stairs / lanes in the favela zones, on the side where the ground falls > 2 m
+    within 4 m; scores a 70 deg fan of 9 rays from the deck's outer edge over terrain + roofs (`obstacle_surface`):
+    a ray counts if nothing rises > 1 deg above the eye (1.6 m) and it ends on low ground (< 8 m: sea / beach).
+    Best first, >= 150 m apart, not within 90 m of a hub centre; a 5 x 3 m deck may replace up to 2 informal houses
+    (they are dropped from the meshes) or stand over lajes lower than the path, never a formal building, another
+    street or a hub element. Writes `lookouts.json`; `build_details.py` builds the deck (solid down to the ground),
+    a 1.05 m railing on the three outer sides and a bench facing the view. Vidigal AOI: 4 lookouts (7 houses
+    removed): Av. Pres. Joao Goulart 124 m and 226 m, Rua Doutor Sobral Pinto 123 m, a stair near the bottom 15 m.
+* `render_view.py`: draws the kinds Details / Wires, and the sea (empty pixels below the horizon).
+* `rio_geo/favela.py infill_zones()`: the favela + hub-surroundings zone list, now shared by `build_area.py` and
+  `build_details.py`.
+
+Numbers (test_vidigal): `build_area.py` 13,895 buildings, 2.49 M triangles (unchanged); details 256 k + wires
+176 k triangles. Infill: Vidigal +5,141 houses (was +5,170; narrower lanes, same 55% coverage).
+
+Tuning notes: the first lookout pass only scored views and found 1 site: almost every downhill edge is lined with
+frontage houses whose roofs stand 3-12 m above the path, so a deck never fitted. Hence siting in `build_area.py`
+with house removal. Pole spacing 30 m left 19% of the poles without a span (chords across bends hit houses);
+22 m brings it to 10%.
+
+## Open / to check in the editor (step 5)
+
+* Door heights on steep slopes; doors on houses whose free wall faces a 2 m passage, not the street.
+* Cars on the 4.2 m lanes (and the 3.0 m services): passing, turning at dead ends (no turning heads yet).
+* Thin cables at distance (aliasing); maybe a minimum on-screen width or a fade.
+* Lookout views, and whether the four sites are good gameplay spots (they're picked by view only).
+
+## Regression (step 5)
+
+`test_lagoa`, `test_leblon_arpoador` (build_area + build_places + build_details; beach / shore not re-run here)
+and `test_leblon_vidigal` all build. Pavao-Pavaozinho: lanes 1.1 / 1.6 km narrowed (living streets), +118 / +511
+houses (55%); Lagoa area 120 doors, 9 poles, no lookout; beach area 733 doors + 105 shutters, 55 poles of which
+**27 without a power span** (steep, dense, few car streets: chords hit taller houses; they still feed 85 drops),
+2 lookouts (76 m and 62 m, 4 houses removed). `test_leblon_vidigal`: 4.8 km narrowed, 2 lookouts, 183 poles.
+Carriageway conflicts 21 / 32 / 10 (OSM-mapped buildings).

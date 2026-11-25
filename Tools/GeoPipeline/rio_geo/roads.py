@@ -70,6 +70,30 @@ def prepare_edges(edges, bbox, cfg):
     return edges.reset_index(drop=True), skipped
 
 
+def narrow_in_zones(edges, zone, cfg, exclude=None):
+    """Favela lanes: drivable streets mostly inside `zone` (favela polygons) without a mapped width get the narrow
+    width of their class (config roads.favela_lanes; OSM's default residential 7 m is a city street), or a
+    per-name width. Edges touching `exclude` (designed hubs) keep their width. Sets the `width` tag, so
+    road_width() uses it everywhere. Returns (edges, {class: metres narrowed})."""
+    edges = edges.copy()
+    if "width" not in edges:
+        edges["width"] = None
+    cls = edges["highway"].map(_first)
+    mapped = edges["width"].map(_number).notna()
+    inside = edges.geometry.intersection(zone).length >= cfg["min_inside_share"] * edges.geometry.length
+    m = cls.isin(cfg["width_m"]) & ~mapped & inside
+    if exclude is not None and not exclude.is_empty:
+        m &= ~edges.geometry.intersects(exclude)
+    names = edges["name"].map(_first) if "name" in edges else pd.Series(None, index=edges.index)
+    w = [cfg["by_name"].get(n, cfg["width_m"].get(c)) for n, c in zip(names, cls)]
+    edges["width"] = edges["width"].astype(object)
+    edges.loc[m, "width"] = [str(v) for v, k in zip(w, m) if k]
+    done = {}
+    for c, L in zip(cls[m], edges.geometry[m].length):
+        done[c] = done.get(c, 0.0) + L / 2  # both directions are stored
+    return edges, {c: round(v) for c, v in done.items()}
+
+
 def densify(line, spacing):
     n = max(2, int(np.ceil(line.length / spacing)) + 1)
     d = np.linspace(0, line.length, n)

@@ -99,7 +99,11 @@
     "surface_offset_m": 0.06,
     "terrain_sink_m": 0.10,
     "stepped_stairs": {"_doc": "highway=steps as solid treads along the solved profile (rio_geo/stairs.py) instead of a flat ribbon.",
-                       "enabled": true, "rise_m": 0.17}
+                       "enabled": true, "rise_m": 0.17},
+    "favela_lanes": {"_doc": "Narrow car access inside favela polygons (rio_geo/roads.py narrow_in_zones): unmapped-width drivable streets mostly inside a favela get one-car widths; the main road keeps a bus-and-car width. Designed hubs keep their streets.",
+                     "enabled": true, "min_inside_share": 0.5, "hub_keep_radius_m": 70.0,
+                     "width_m": {"residential": 4.2, "unclassified": 4.2, "living_street": 3.4, "service": 3.0},
+                     "by_name": {"Avenida Presidente João Goulart": 6.0}}
   },
 
   "buildings": {
@@ -228,6 +232,21 @@
     "posto": {"base_m": [6.0, 4.0, 3.0], "cabin_m": [3.0, 3.0, 2.4], "column_m": 1.2, "cabin_floor_m": 6.0},
     "palm": {"spacing_m": 12.0, "jitter_m": 2.0, "height_m": [8.0, 12.0], "clear_m": 6.0,
              "offset_from_sand_edge_m": 0.9, "fronds": 7, "frond_length_m": 3.2}
+  },
+
+  "details": {
+    "_doc": "Favela street details (rio_geo/details.py, scripts/build_details.py, after build_area / build_places): doors, poles + overhead wires, lookouts.",
+    "doors": {"enabled": true, "min_wall_m": 1.6, "search_m": 14.0, "door_m": [0.9, 2.1], "shutter_m": [2.6, 2.5],
+              "shutter_share": 0.3, "door_materials": ["M_Door", "M_Door", "M_DoorBlue", "M_DoorGreen"]},
+    "wires": {"enabled": true, "radius_m": 0.012, "segments": 8,
+              "poles": {"spacing_m": 22.0, "min_gap_m": 11.0, "height_m": [8.5, 9.5], "max_span_m": 42.0,
+                        "transformer_share": 0.2, "telecom_below_top_m": 3.0, "telecom_cables": [2, 5]},
+              "drops": {"radius_m": 24.0, "share": 0.6, "max_per_pole": 12},
+              "becos": {"step_m": 7.0, "snap_m": 2.0, "height_m": [3.0, 4.6], "max_cables": 3, "tie_m": 30.0}},
+    "lookouts": {"enabled": true, "count": 5, "min_separation_m": 150.0, "on_groups": ["path", "steps", "minor"],
+                 "sample_m": 6.0, "min_drop_m": 2.0, "deck_m": [5.0, 3.0], "fan_deg": 70.0, "rays": 9,
+                 "near_m": 2.0, "far_m": 700.0, "max_block_deg": 1.0, "low_ground_m": 8.0, "min_score": 0.5,
+                 "over_roof_m": 0.25, "hub_exclude_m": 90.0, "max_removed": 2}
   },
 
   "places": {

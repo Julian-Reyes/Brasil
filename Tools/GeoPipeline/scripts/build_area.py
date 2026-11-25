@@ -28,6 +28,7 @@ from shapely.strtree import STRtree
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from rio_geo import buildings as bld  # noqa: E402
+from rio_geo import details as dt  # noqa: E402
 from rio_geo import favela as fav  # noqa: E402
 from rio_geo import places as plc  # noqa: E402
 from rio_geo.beach import box as box_mesh  # noqa: E402
@@ -92,6 +93,13 @@ def main():
     favela_union = favelas.geometry.union_all() if len(favelas) else None
     buildings["informal"] = buildings.geometry.centroid.within(favela_union) if favela_union is not None else False
     log(f"inputs: {len(buildings)} buildings ({int(buildings.informal.sum())} in favela areas), {len(edges)} edges")
+    lanes_cfg = rcfg.get("favela_lanes", {"enabled": False})
+    if lanes_cfg["enabled"] and favela_union is not None:  # narrow car access: one-car lanes inside the favela
+        hubs_keep = shapely.union_all([Point(h["center"]).buffer(lanes_cfg["hub_keep_radius_m"])
+                                       for h in CONFIG["places"]["hubs"]])
+        edges, narrowed = rd.narrow_in_zones(edges, favela_union, lanes_cfg, hubs_keep)
+        if narrowed:
+            log("favela lanes narrowed: " + ", ".join(f"{c} {L / 1000:.1f} km" for c, L in sorted(narrowed.items())))
 
     # ---------------- terrain
     hs = [bld.building_height(r, bool(r["informal"]), bcfg) for _, r in buildings.iterrows()]
@@ -105,6 +113,7 @@ def main():
     infill_report, infill = [], gpd.GeoDataFrame(geometry=[], crs=PROJECTED_CRS)
     buildings["water_tank"] = False
     buildings["material"], buildings["parapet"], buildings["roof_room"] = None, False, False
+    buildings["frontage"] = ""
     if fcfg["enabled"] and fcfg.get("style_mapped_informal"):  # mapped favela houses get the same looks
         for i in np.flatnonzero(buildings["informal"].to_numpy()):
             sty = fav.house_style(("osm", str(buildings.at[i, "osmid"]) if "osmid" in buildings else i), fcfg)
@@ -112,13 +121,7 @@ def main():
                 buildings.at[i, k] = sty[k]
     if fcfg["enabled"] and len(favelas):
         circ, _ = rd.prepare_edges(edges, bbox, rcfg)
-        zones = [(str(r.get("name")), r.geometry) for _, r in favelas.iterrows()]
-        # designed hubs get the same infill around them (lower Vidigal lies outside OSM's favela outline), minus
-        # the parts already covered by a favela polygon so nothing is filled twice
-        for hub in CONFIG["places"]["hubs"]:
-            if hub.get("infill_radius_m") and box(*bbox).contains(Point(hub["center"])):
-                zone = Point(hub["center"]).buffer(hub["infill_radius_m"]).difference(favela_union or Point(0, 0))
-                zones.append((f"{hub['name']} surroundings", zone, {"max_levels": hub.get("infill_max_levels")}))
+        zones = fav.infill_zones(favelas, CONFIG["places"]["hubs"], bbox)
         in_zone = buildings.geometry.centroid.within(shapely.union_all([z[1] for z in zones]))
         houses, infill_report = fav.generate_infill(zones, buildings[buildings["informal"] | in_zone],
                                                     circ, dsm, dsm_tf, bbox, fcfg)
@@ -130,7 +133,7 @@ def main():
             infill["osmid"] = "infill:" + infill["lot"]
             buildings = gpd.GeoDataFrame(pd.concat([buildings, infill[["geometry", "height", "height_m", "informal",
                                                                        "height_src", "osmid", "water_tank", "material",
-                                                                       "parapet", "roof_room"]]],
+                                                                       "parapet", "roof_room", "frontage"]]],
                                                    ignore_index=True), crs=PROJECTED_CRS)
         log("favela infill: " + "; ".join(f"{r['favela']}: +{r['added']} houses, coverage "
                                           f"{r['mapped_coverage']:.0%} -> {r.get('coverage_after', r['mapped_coverage']):.0%}"
@@ -296,6 +299,37 @@ def main():
     elif (out / "stairs.json").exists():
         (out / "stairs.json").unlink()
 
+    # ---------------- lookouts (mirantes): sited here so the house or two on each deck leave the meshes; the deck,
+    # railing and bench are built by build_details.py from lookouts.json (rio_geo/details.py)
+    lcfg = CONFIG.get("details", {}).get("lookouts", {"enabled": False})
+    lookouts = []
+    if lcfg["enabled"] and len(favelas):
+        lzone = shapely.union_all([z[1] for z in fav.infill_zones(favelas, CONFIG["places"]["hubs"], bbox)])
+        rings = [g.exterior if g.geom_type == "Polygon" else g.convex_hull.exterior for g in buildings.geometry]
+        zmax = np.array([terrain.sample(*np.asarray(r.coords)[:, :2].T).max() for r in rings])
+        zmin = np.array([terrain.sample(*np.asarray(r.coords)[:, :2].T).min() for r in rings])
+        top = zmax + buildings["height_m"].to_numpy()
+        hs = dt.Houses(gpd.GeoDataFrame({"top": top, "roof_top": top + 1.1 * buildings["water_tank"].eq(True),
+                                         "ground_min": zmin, "ground_max": zmax, "informal": buildings["informal"],
+                                         "frontage": buildings["frontage"], "osmid": buildings["osmid"].astype(str)},
+                                        geometry=buildings.geometry.values, crs=PROJECTED_CRS))
+        circ_l = dt.Circulation([{"class": r["cls"], "points": prof, "width_m": r["width_m"], "bridge": bool(r["is_bridge"]),
+                                  "osmid": str(r["osmid"]), "name": None if str(r.get("name")) == "nan" else r.get("name")}
+                                 for (_, r), prof in zip(surf.iterrows(), profiles)], rd.CLASS_INFO)
+        block = [t["polygon"].buffer(0.5) for t in terr] + [e["polygon"].buffer(1.0) for e in elems] + \
+                [s["corridor"].buffer(0.8) for s in hub_stairs] + \
+                [Point(h["center"]).buffer(lcfg["hub_exclude_m"]) for h in CONFIG["places"]["hubs"]]
+        lookouts, lstats = dt.lookout_sites(hs, circ_l, terrain, lzone, shapely.union_all(block), lcfg)
+        gone = sorted({h for s in lookouts for h in s["remove"]})
+        buildings = buildings.drop(index=gone).reset_index(drop=True)
+        log(f"lookouts: {lstats}; " + "; ".join(f"{s['edge']} @ {s['z']:.0f} m facing {s['heading_deg']:.0f} deg "
+                                                f"(score {s['score']})" for s in lookouts))
+    (out / "lookouts.json").write_text(json.dumps(
+        [{"edge": s["edge"], "z": round(s["z"], 3), "score": s["score"], "heading_deg": s["heading_deg"],
+          "side": s["side"], "xy": np.round(s["xy"], 3).tolist(), "t": np.round(s["t"], 5).tolist(),
+          "n": np.round(s["n"], 5).tolist(), "inner": np.round(s["inner"], 3).tolist(), "deck": s["deck"].wkt,
+          "houses_removed": len(s["remove"])} for s in lookouts], indent=1))
+
     # ---------------- verification metrics
     grades = []
     for (_, r), prof in zip(surf.iterrows(), profiles):
@@ -364,6 +398,7 @@ def main():
     carriageways = [g.buffer(w / 2, cap_style="flat") for g, w in zip(drivable.geometry, drivable["width_m"])]
     tree = STRtree(carriageways)
     height_sources, conflicts, placed = {}, 0, 0
+    house_rows = []  # placed footprints with their heights, for build_details.py (doors, wires, lookouts)
     for idx, r in buildings.iterrows():
         h, src = r["height_m"], r["height_src"]
         for poly in bld.footprint_polygons(r.geometry):
@@ -406,9 +441,16 @@ def main():
                     tank_at = Point(*p) if poly.buffer(-0.7).contains(Point(*p)) else poly.representative_point()
                 tank = bbox_box_mesh((tank_at.x - pivot[0], tank_at.y - pivot[1]), 1.2, tank_top, tank_top + 1.1)
                 tiles[key]["Buildings"].add("M_WaterTank", *tank)
+            roof_top = max(top + (fcfg["roof"]["parapet_m"] if r.get("parapet") == True else 0.0),  # noqa: E712
+                           tank_top + (1.1 if r.get("water_tank") == True else 0.0))  # noqa: E712
+            house_rows.append({"geometry": poly, "osmid": str(r.get("osmid")), "informal": bool(r["informal"]),
+                               "frontage": r.get("frontage") if isinstance(r.get("frontage"), str) else "",
+                               "material": mat, "ground_min": float(zg.min()), "ground_max": float(zg.max()),
+                               "top": float(top), "roof_top": float(roof_top)})
             height_sources[src] = height_sources.get(src, 0) + 1
             placed += 1
     log(f"buildings placed: {placed}; carriageway conflicts: {conflicts}")
+    gpd.GeoDataFrame(house_rows, geometry="geometry", crs=PROJECTED_CRS).to_file(out / "houses.gpkg", driver="GPKG")
 
     # ---------------- write
     write_mtl(out / "blockout.mtl", PALETTE)

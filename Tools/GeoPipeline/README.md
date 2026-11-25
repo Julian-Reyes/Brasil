@@ -174,7 +174,21 @@ All inside `build_area.py` unless noted; settings in `config/project.json`.
   the pitches), streets are cut out of OSM pitch aprons, and on uphill sides the 2 m-grid slope is moved behind
   the retaining wall, which gets a flat top ledge.
 
-Vidigal order: `clip_osm.py`, `fetch_beach.py --set vidigal`, `build_area.py`, `build_places.py`, import.
+* **Favela lanes** (`roads.favela_lanes`, `rio_geo/roads.py narrow_in_zones`): drivable streets mostly inside a
+  favela polygon with no mapped width get one-car widths (residential 4.2 m, living street 3.4 m, service 3.0 m;
+  Av. Pres. Joao Goulart 6.0 m by name). Hub streets keep theirs (`hub_keep_radius_m`).
+* **Street details** (`details`, `rio_geo/details.py`, `scripts/build_details.py --aoi <aoi>`, after
+  `build_places.py`): doors on every favela house (on the wall facing its street / beco / stair, at the ground
+  outside it; roller shutters on some ground floors on car streets), concrete poles along favela car streets with
+  power lines, sagging telecom / "gato" cables, transformers and service drops, and cables zigzagging wall to wall
+  over becos and stairs (kind `Wires`, no collision). Lookouts (mirantes): `build_area.py` picks the best few
+  points on becos / stairs / lanes looking over the roofs to the sea (`lookout_sites`, clears the house or two on
+  each deck, writes `lookouts.json`); `build_details.py` builds the deck, railing and bench and adds `lookout`
+  markers. Reads `houses.gpkg` (all placed footprints with heights, written by `build_area.py`).
+  One-time Unreal step: import `details/SM_DetailsPalette.obj` with materials into `/Game/Rio/Materials/Blockout/`.
+
+Vidigal order: `clip_osm.py`, `fetch_beach.py --set vidigal`, `build_area.py`, `build_places.py`,
+`build_details.py`, import.
 
 ## 3D views without Unreal (`scripts/render_view.py`)
 
@@ -186,4 +200,5 @@ MacBook:
     --radius 80 --out /tmp/hub.png        # eye-rel = azimuth from north, elevation, distance (or --eye E N Z)
 ```
 
-About 20-40 s for 10-20 k triangles; keep `--radius` small.
+About 20-40 s for 10-20 k triangles; keep `--radius` small. Empty pixels below the horizon are drawn as sea
+(sea level), so long views (`--radius 900`) show the coast.
