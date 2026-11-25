@@ -204,6 +204,21 @@ Still open from earlier: Unreal verification of everything (no editor on the Mac
 problems 1-2, the restaurants across the Lagoa ring road (decide after the drive / walk test), then the
 compressed map.
 
+### Next on the MacBook (no Unreal needed; noted 2026-11-25, nothing started)
+
+Most remaining work waits on the walk-around (stairs / lanes / turnarounds feel, cable shimmer, frame rate,
+problems 1-2). What the laptop can still do, most useful first:
+
+1. **Plan the compressed map** (the next big milestone): which areas go in (Vidigal, Leblon-Arpoador beach,
+   Lagoa, Pavao-Pavaozinho), how they connect, what gets cut or squeezed, and how the scale rules in
+   `DesignPriorities.md` become pipeline settings. Either a written proposal first or straight to a top-down
+   prototype layout. Recommended before the walk-around.
+2. **`test_leblon_vidigal` ground 20-35 m too high:** old bug. `test_vidigal` replaces it for Vidigal, but the
+   Leblon side only exists in the old area; find the cause so bigger areas don't inherit it.
+3. **Small polish, better judged after the walk-around:** a water channel (canaleta) along the escadarias; cap
+   on how steep a turnaround may be (6 follow lanes > 19%, up to 33%); a short hub stair straight onto the
+   escadarias (now ~90 m along the avenue).
+
 ## State on 2026-11-18, latest (MacBook, branch `macbook/vidigal`, on top of `macbook/lagoa`)
 
 * Vidigal starting area: test AOI `test_vidigal`, favela housing infill, Dois Irmaos at surveyed height, the
