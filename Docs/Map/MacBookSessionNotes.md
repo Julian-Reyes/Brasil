@@ -916,3 +916,21 @@ building materials during the favela setup (landmark materials were lost).
   level now; watch editor load / frame rate.
 * Still outside: the north slopes of the Pao de Acucar / Morro da Urca (edge 115 m behind the summit), the Urca
   neighbourhood and Praia da Urca, Botafogo, the Corcovado (N7460682 but W of this area; inside none).
+
+# Session 15 (2026-11-26, MacBook): short hills raised to their surveyed heights
+
+`landmark_peaks` gained Morro de Sao Joao (r 200 m), Agulha do Inhanga (r 120 m) and Morro do Leme (r 180 m).
+Radii stay under the nearest house (Sao Joao 215 m, Inhanga 131 m). Results (model vs OSM `ele`): Morro do Leme
+151.3 / 150, Morro de Sao Joao 242.9 / 242, Agulha do Inhanga 164.5 / 164. Pao de Acucar unchanged 392.5 / 392.
+Render: `screenshots/morro_do_leme.png`.
+
+* **Morro do Leme**: the Forte Duque de Caxias (OSM way 462182014) is on its summit ridge, 113 m west of the OSM
+  peak node. A dome on the node left the fort straddling a 35 m flank (a 40 m wall downhill), so this dome is
+  centred on the fort (`landmark_peaks.centre_utm`; assumption: the fort marks the summit), and the fort is a 5 m
+  `M_FortConcrete` landmark (was a 33 m default tower). Fort ground now 148.4-150.4 m. The access road cuts a
+  notch into the raised top: check in the editor.
+* Morro da Saudade is not short: 252 m in the Lagoa build (OSM 244). The earlier 192 m was sampled from outside
+  the Copacabana area. Not added.
+* Morro do Cantagalo (9 m short) skipped: favela houses 16 m from its summit.
+* `test_copacabana`, `test_lagoa`, `test_leblon_arpoador` rebuilt (Agulha do Inhanga is also inside the Leblon
+  area's DEM window: `+36.7 m` there too).

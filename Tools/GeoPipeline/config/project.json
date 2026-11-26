@@ -190,7 +190,8 @@
        "face_slope": 0.8, "summit_falloff": 0.35}
     ],
     "landmark_buildings": [
-      {"osm_id": 371926003, "name": "Forte de Copacabana (1914 fortress)", "height_m": 6.0, "material": "M_FortConcrete"}
+      {"osm_id": 371926003, "name": "Forte de Copacabana (1914 fortress)", "height_m": 6.0, "material": "M_FortConcrete"},
+      {"osm_id": 462182014, "name": "Forte Duque de Caxias (Forte do Leme, summit)", "height_m": 5.0, "material": "M_FortConcrete"}
     ],
     "landmark_zones": [
       {"set": "forte", "name": "Forte de Copacabana", "key": "tourism", "value": "museum",
@@ -655,8 +656,14 @@
       "Irmão Maior": 230.0,
       "Irmão Menor": 200.0,
       "Corcovado": 250.0,
-      "Pão de Açúcar": 200.0
-    }
+      "Pão de Açúcar": 200.0,
+      "Morro de São João": 200.0,
+      "Agulha do Inhangá": 120.0,
+      "Morro do Leme": 180.0
+    },
+    "centre_utm": {"Morro do Leme": [688419.0, 7459373.0]},
+    "_centre_note": "Morro do Leme: dome centred on the Forte Duque de Caxias (on the summit ridge; the OSM peak node is 113 m east and a dome there left the fort straddling a 35 m flank). Assumption: the fort marks the summit.",
+    "_radius_note": "Session 15: radii under the nearest house (Sao Joao 215 m, Inhanga 131 m). Morro da Saudade is not short (252 m in the Lagoa build vs 244 OSM). Morro do Leme 180 m covers the Forte Duque de Caxias on its summit ridge (61-110 m from the peak node), which rises with the hill; next building 252 m. Morro do Cantagalo (9 m short) skipped: favela houses 16 m from its summit."
   },
 
   "verification_landmarks": [

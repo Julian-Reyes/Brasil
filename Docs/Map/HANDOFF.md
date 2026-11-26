@@ -75,7 +75,8 @@ Expected (Session 12): Leblon-Arpoador `beach life: {'barracas': 72, 'umbrellas'
 650, 'courts_osm': 2, 'courts_procedural': 18 ...}`, beach centreline `z 1.01..3.28 m`; Copacabana `geometry: 12
 tiles, 5 postos, 47 kiosks, 279 palms`, `beach life: {'barracas': 52, 'umbrellas': 1976, ...}`, `buildings placed:
 11002`, `favela infill: Babilônia: +1578 houses ...; Chapéu Mangueira: +623 houses ...`, `landmark peaks raised to
-surveyed height: Pão de Açúcar +93.1 m`, `wrote 194 meshes, 9.20 M triangles`. New level for Copacabana: `$P unreal/ue_remote.py unreal/create_test_level.py '{"level":
+surveyed height: Pão de Açúcar +93.1 m, Morro de São João +60.5 m, Agulha do Inhangá +36.7 m, Morro do Leme +41.8 m`,
+`wrote 194 meshes, 9.20 M triangles`. New level for Copacabana: `$P unreal/ue_remote.py unreal/create_test_level.py '{"level":
 "/Game/Rio/Maps/L_Rio_Test_Copacabana", "player_start": {"name": "PlayerStart_Copacabana", "location_cm": [192000,
 232000, 300], "yaw": 0}}'`, then `import_area.py '{"aoi": "test_copacabana"}'`.
 
@@ -121,7 +122,8 @@ Fly to the spots in **`UnrealDebugGuide.md` -> "Vidigal hub, layout 2"** (UTM + 
     scale, frame rate at Posto 9, courts, facade colours, sand edge vs calcadao, the Posto 6 hump (decide option A
     together with Problem 2), the Tunel Novo slope.
 4g. Arpoador and the Forte (spots: `UnrealDebugGuide.md` -> "Arpoador and the Forte"): rock silhouette and paths,
-    fortress roof / cupolas / wall vs photos.
+    fortress roof / cupolas / wall vs photos; Morro do Leme summit (Forte Duque de Caxias, road notch) at
+    E688419 N7459373 = UE (391900, 162700, 15000).
 5. Report back anything off; layout changes go in `config/project.json -> places.hubs[0]`, then re-run
    `build_area.py` + `build_places.py`.
 

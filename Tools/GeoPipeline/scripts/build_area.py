@@ -239,7 +239,8 @@ def main():
         pts = gpd.read_file(full_ref, layer="points")
         radii = CONFIG["landmark_peaks"]["radius_m"]
         sel = pts[pts["name"].isin(radii) & pts["natural"].astype(str).eq("peak")]
-        peaks = [(r["name"], r.geometry.x, r.geometry.y, float(r["ele"]), radii[r["name"]])
+        moved = CONFIG["landmark_peaks"].get("centre_utm", {})  # dome centre where OSM's node is off the summit
+        peaks = [(r["name"], *moved.get(r["name"], (r.geometry.x, r.geometry.y)), float(r["ele"]), radii[r["name"]])
                  for _, r in sel.iterrows() if str(r.get("ele")) not in ("nan", "None")]
         peaks.sort(key=lambda p: -p[3])  # tallest first, so a smaller neighbour is corrected on top of its tail
         peaks_report = ter.raise_landmark_peaks(ground10, dsm_tf, peaks)
