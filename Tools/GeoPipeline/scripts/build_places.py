@@ -33,6 +33,9 @@ PALETTE = {
     "M_Hangout": (0.70, 0.30, 0.45), "M_Parapet": (0.75, 0.73, 0.70), "M_Awning": (0.85, 0.85, 0.85),
     "M_AwningRed": (0.80, 0.15, 0.12), "M_AwningGreen": (0.15, 0.55, 0.25), "M_AwningYellow": (0.95, 0.78, 0.15),
     "M_AwningBlue": (0.15, 0.35, 0.75), "M_Stair": (0.70, 0.68, 0.64),
+    # Forte de Copacabana (rio_geo/fort.py); the fortress body M_FortConcrete is in the blockout palette
+    "M_FortTurret": (0.36, 0.40, 0.36), "M_FortGun": (0.20, 0.21, 0.22), "M_FortWall": (0.90, 0.86, 0.74),
+    "M_Lawn": (0.36, 0.58, 0.30), "M_Pier": (0.55, 0.45, 0.33),
 }
 # also used here, defined elsewhere: M_WaterTank (blockout palette), M_Bench / M_TreeTrunk / M_TreeCrown (shore palette)
 
@@ -76,6 +79,15 @@ def main():
         streets = shapely.union_all([LineString(np.asarray(e["points"])[:, :2]).buffer(e["width_m"] / 2, cap_style="flat")
                                      for e in edges if CLASS_INFO.get(e["class"], (0, ""))[1] in ("major", "minor")])
     stats = plc.build(terr, elems, terrain, tm, cfg, stairs=stairs, streets=streets)
+    fort_stats = None
+    if (osm / "forte.gpkg").exists():  # landmark complex: Forte de Copacabana
+        from rio_geo import fort  # noqa: PLC0415
+        lines = gpd.read_file(osm / "reference.gpkg", layer="lines")
+        coast = lines[lines["natural"].astype(str).eq("coastline")].geometry.union_all() if len(lines) else None
+        fort_stats = fort.build(gpd.read_file(osm / "forte.gpkg", layer="areas"),
+                                gpd.read_file(osm / "forte.gpkg", layer="features"),
+                                gpd.read_file(osm / "buildings.gpkg"), coast, terrain, tm, CONFIG["headlands"])
+        log(f"Forte de Copacabana: {fort_stats if fort_stats else 'not in this AOI'}")
     log(f"terraces {stats['terraces']} ({stats['pitches']} with pitches), retaining walls ~{stats['walls_m']:.0f} m, "
         f"hub buildings {stats['hub_buildings']}, stairs {len(stats['stairs'])}")
     for s in stats["stairs"]:
@@ -106,7 +118,7 @@ def main():
         log(f"landmarks not found in this AOI: {missing}")
     marks = plc.markers(elems, feats, terrain, utm_to_ue)
     keep = [m for m in manifest.get("markers", []) if m.get("source") not in ("hub",) and not
-            str(m.get("source", "")).startswith(("osm:vidigal", "osm:buildings", "osm:lagoa/", "osm:beach/"))
+            str(m.get("source", "")).startswith(("osm:vidigal", "osm:buildings", "osm:lagoa/", "osm:beach/", "osm:forte/"))
             or m.get("kind") == "Posto"]
     manifest["markers"] = keep + marks
 
@@ -130,7 +142,7 @@ def main():
     saved = PROJECT_DIR / "Saved" / "RioPipeline" / f"{args.aoi}_manifest.json"
     saved.parent.mkdir(parents=True, exist_ok=True)
     saved.write_text(json.dumps(manifest, indent=2))
-    report = {"aoi": args.aoi, **stats,
+    report = {"aoi": args.aoi, **stats, "fort": fort_stats,
               "terraces": [{"name": t["name"], "kind": t["kind"], "z": t["z"], "area_m2": round(t["polygon"].area)}
                            for t in terr],
               "hub_elements": [{"label": e["label"], "type": e["type"], "z": e.get("z")} for e in elems],

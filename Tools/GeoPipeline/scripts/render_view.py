@@ -32,7 +32,7 @@ def palette():
     cols = dict(COLOURS)
     try:
         from build_area import PALETTE as B  # noqa: PLC0415
-        cols.update({k: v for k, v in B.items() if k.startswith(("M_House", "M_Facade", "M_GroundFloor", "M_RoofConcrete"))})
+        cols.update({k: v for k, v in B.items() if k.startswith(("M_House", "M_Facade", "M_GroundFloor", "M_RoofConcrete", "M_Fort"))})
     except Exception:  # noqa: BLE001 - optional
         pass
     for mod in ("build_places", "build_details", "build_beach", "build_shore"):

@@ -151,6 +151,16 @@ Postos (`posto_density`). Meshes `beach/SM_T<i><j>_BeachLife.obj`, kind `BeachLi
 material slots (`M_Umbrella*`, `M_ChairFrame`, `M_Barraca`, `M_CourtLine`, `M_NetPost`, `M_Net`) are in
 `SM_BeachPalette.obj`: re-import it with materials once.
 
+## Headlands and the Forte de Copacabana
+
+`headlands` in the config. Coastal natural-cover / military / fort polygons (within `protect_coast_m` of the
+coastline) skip the lowland opening and the shore caps, so narrow points keep their DSM relief. Rocks the DSM lost
+to Copernicus' water mask are rebuilt from their OSM outline and peak (`rebuild`: Pedra do Arpoador, 16 m peak).
+`landmark_buildings` / `landmark_zones` fix heights and materials (`M_FortConcrete`, `M_FortColonial`).
+`rio_geo/fort.py` (called by `build_places.py` when `forte.gpkg` exists; `fetch_beach.py --set forte`) adds the
+fortress roof (parapet, cupolas, guns), the grounds wall with gate gaps, lawns and the Posto 6 pier. New places
+materials: `M_FortTurret`, `M_FortGun`, `M_FortWall`, `M_Lawn`, `M_Pier`.
+
 ## Lake shore promenade (`scripts/build_shore.py`)
 
 Walking + bike lanes, benches, trees / palms and kiosks around `shore.water_name` (Lagoa Rodrigo de Freitas).

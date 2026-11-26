@@ -41,7 +41,7 @@
     },
     "test_copacabana": {
       "description": "Copacabana and Leme test: Av. Atlantica and the beach from Posto 6 / Forte de Copacabana to Leme, back to Cantagalo / Pavao-Pavaozinho and Rua Barata Ribeiro.",
-      "bbox_utm": [685000.0, 7456500.0, 688500.0, 7460000.0],
+      "bbox_utm": [685000.0, 7456000.0, 688500.0, 7460000.0],
       "tile_size_m": 500.0,
       "terrain_grid_m": 2.5,
       "unreal_folder": "Test_Copacabana",
@@ -180,6 +180,38 @@
     }
   },
 
+  "headlands": {
+    "_doc": "Coastal headlands (build_area.py + rio_geo/terrain.py, meshes in rio_geo/fort.py). Polygons of protect_natural (reference layer) and protect_tags (feature-set areas) within protect_coast_m of the coastline skip the lowland opening and the shore / beachfront caps. `rebuild`: rocks the DSM lost (water mask) rebuilt from their OSM outline + peak. landmark_buildings / landmark_zones: fixed heights and materials (blockout guesses, not surveyed).",
+    "protect_natural": ["wood", "scrub", "bare_rock", "scree", "rock", "cliff", "heath", "grassland"],
+    "protect_tags": {"landuse": ["military"], "historic": ["fort"], "tourism": ["museum"], "natural": ["bare_rock", "wood", "scrub"]},
+    "protect_coast_m": 250.0,
+    "rebuild": [
+      {"polygon_name": "Pedra do Arpoador", "peak": "Ponta do Arpoador", "ele_m": 16.0, "merge_m": 30.0,
+       "face_slope": 0.8, "summit_falloff": 0.35}
+    ],
+    "landmark_buildings": [
+      {"osm_id": 371926003, "name": "Forte de Copacabana (1914 fortress)", "height_m": 6.0, "material": "M_FortConcrete"}
+    ],
+    "landmark_zones": [
+      {"set": "forte", "name": "Forte de Copacabana", "key": "tourism", "value": "museum",
+       "material": "M_FortColonial", "levels": [1, 2]},
+      {"set": "forte", "name": "3º Grupamento Marítimo Copacabana", "key": "amenity", "value": "fire_station",
+       "material": "M_FacadeWhite", "levels": [2, 3]},
+      {"set": "forte", "name": "Clube dos Marimbás", "key": "leisure", "value": "sports_centre",
+       "material": "M_FacadeWhite", "levels": [2, 3]}
+    ],
+    "fort": {
+      "fortress_osm_id": 371926003,
+      "grounds": {"name": "Forte de Copacabana", "key": "tourism", "value": "museum"},
+      "parapet_m": 1.0,
+      "cupolas": [{"at": 0.3, "radius_m": 4.5, "gun_m": 9.0}, {"at": 0.55, "radius_m": 4.5, "gun_m": 9.0},
+                  {"at": 0.18, "radius_m": 2.8, "gun_m": 5.0}, {"at": 0.75, "radius_m": 2.8, "gun_m": 5.0}],
+      "wall": {"height_m": 3.2, "thickness_m": 0.7, "coast_clear_m": 10.0, "gate_gap_m": 5.0},
+      "lawn_lift_m": 0.04,
+      "pier_deck_m": 1.6
+    }
+  },
+
   "feature_sets": {
     "_doc": "scripts/fetch_beach.py --set <name>: point features queried in a strip (pad_m) around the anchor polygons.",
     "beach": {
@@ -191,6 +223,17 @@
         "amenity": ["fast_food", "bar", "cafe", "kiosk", "shower", "toilets", "drinking_water", "lifeguard"],
         "leisure": ["pitch", "fitness_station", "playground"],
         "man_made": ["tower", "lifeguard_tower"]
+      }
+    },
+    "forte": {
+      "_doc": "Forte de Copacabana and the Arpoador headland (rio_geo/fort.py, terrain headlands).",
+      "anchor_names": ["Praia do Forte", "Pedra do Arpoador"],
+      "pad_m": 250.0,
+      "tags": {
+        "historic": ["fort"], "tourism": ["museum", "attraction"], "landuse": ["military", "grass"],
+        "natural": ["bare_rock", "wood", "scrub", "peak"], "barrier": ["gate", "sally_port", "entrance", "wall"],
+        "entrance": true, "aeroway": ["helipad"], "man_made": ["pier"],
+        "amenity": ["restaurant", "cafe", "fire_station", "toilets"], "leisure": ["sports_centre"]
       }
     },
     "copacabana": {
@@ -532,6 +575,10 @@
     "landmarks": {
       "_doc": "Real places marked for gameplay (name in the AOI's feature sets -> marker kind).",
       "Vila Olímpica Adílio": "sports_complex",
+      "Forte de Copacabana": "fort",
+      "Confeitaria Colombo": "cafe",
+      "Cafe 18 do Forte": "cafe",
+      "Pedra do Arpoador": "lookout",
       "Quadra do Alto": "court",
       "Bar da Laje": "rooftop_bar",
       "Ciosque": "bar",

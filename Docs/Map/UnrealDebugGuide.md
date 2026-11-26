@@ -265,3 +265,21 @@ What to look at:
   been cut too much (real hill there?); Morro do Leme and Chapeu Mangueira must be intact.
 * **Posto 6 hump:** Av. Atlantica rises to ~11 m at Rua Francisco Sa (Problem 2's mechanism). Option A fixes it in
   the pipeline (Atlantica 1.0-3.7 m); decide together with Problem 2.
+
+## Arpoador and the Forte (2026-11-26, Session 13)
+
+Level `L_Rio_Test_Copacabana` (complete fort and rock; `L_Rio_Test_LeblonArpoador` has the rock and only the west
+part of the fort). Renders: `screenshots/arpoador_rock.png`, `forte_copacabana.png`, `forte_fortress_roof.png`.
+
+| What | UTM | UE (cm) | z |
+|---|---|---|---|
+| Pedra do Arpoador summit (rebuilt) | E685440 N7456365 | (94000, 463500, 1400) | 14.0 m |
+| Fort gate / sally port (Praca Cel. Eugenio Franco) | E685769 N7456860 | (126900, 414000, 350) | 3.5 m |
+| Museum buildings (colonial blocks) | E685830 N7456890 | (133000, 411000, 22) | 0.2 m |
+| Confeitaria Colombo | E685864 N7456905 | (136400, 409500, 13) | 0.1 m |
+| Fortress roof (walkable, cupolas) | E686050 N7456900 | (155000, 410000, 720) | 7.2 m |
+| Posto 6 fishermen's pier | E685762 N7456924 | (126200, 407600, 90) | 0.9 m |
+
+What to look at: the rock's silhouette from Posto 9 and from the Arpoador beach; walk the rock paths (complex
+terrain collision); fortress roof walkable with the parapet; cupola / gun scale; the wall line (gaps at the gate,
+not through buildings); peninsula spine 12-17 m; nothing floating where the old flat ground was.

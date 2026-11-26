@@ -38,6 +38,10 @@ What changed (details: `MacBookSessionNotes.md` -> Session 5 and Session 6):
   a dark ground-floor band, parapets and roof machine rooms; beach terrain fixed (no fake land strip in the surf,
   no pit under the sand); beachfront avenues flattened; new AOI `test_copacabana` (Posto 6 to Leme). Renders:
   `screenshots/beach_life_*.png`, `ipanema_facades_aerial.png`, `copacabana_*.png`.
+* Arpoador and the Forte (Session 13): the Pedra do Arpoador (missing from Copernicus) rebuilt from OSM to 14 m;
+  coastal headlands keep their relief; the Forte de Copacabana as a complex (fortress with walkable roof,
+  cupolas and guns, colonial museum buildings, wall, lawns, Posto 6 pier). Renders: `screenshots/arpoador_rock.png`,
+  `forte_*.png`.
 
 ### Checklist
 
@@ -52,6 +56,7 @@ $P scripts/fetch_beach.py --aoi test_leblon_arpoador --set beach
 $P scripts/fetch_beach.py --aoi test_lagoa --set lagoa
 $P scripts/fetch_beach.py --aoi test_vidigal --set vidigal
 $P scripts/clip_osm.py --aoi test_copacabana && $P scripts/fetch_beach.py --aoi test_copacabana --set copacabana
+$P scripts/fetch_beach.py --aoi test_leblon_arpoador --set forte && $P scripts/fetch_beach.py --aoi test_copacabana --set forte
 cp ../../GeoData/raw/osm/test_lagoa/lagoa.gpkg ../../GeoData/raw/osm/test_leblon_arpoador/
 # builds (each area: build_area first, then its extra steps)
 $P scripts/build_area.py --aoi test_vidigal && $P scripts/build_places.py --aoi test_vidigal && $P scripts/build_details.py --aoi test_vidigal
@@ -80,9 +85,10 @@ from `build_details.py`: `doors: {'doors': 12155, 'shutters': 487, ...}`, `poles
 
 In the editor (one time, with materials, into `/Game/Rio/Materials/Blockout/`): re-import
 `SM_BlockoutPalette.obj` (has `M_WaterTank`, the house facades `M_HouseRender`, `M_HousePaint*` and, new in
-Session 12, `M_Facade*`, `M_GroundFloor`, `M_RoofConcrete`), import `beach/SM_BeachPalette.obj` (Session 12 adds
+Session 12, `M_Facade*`, `M_GroundFloor`, `M_RoofConcrete`; Session 13 `M_FortConcrete`, `M_FortColonial`), import `beach/SM_BeachPalette.obj` (Session 12 adds
 `M_Umbrella*`, `M_ChairFrame`, `M_Barraca`, `M_CourtLine`, `M_NetPost`, `M_Net`), `shore/SM_ShorePalette.obj`,
-**re-import `places/SM_PlacesPalette.obj`** (new `M_Stair`), and **import `details/SM_DetailsPalette.obj`** (new:
+**re-import `places/SM_PlacesPalette.obj`** (new `M_Stair`; Session 13 adds `M_FortTurret`, `M_FortGun`, `M_FortWall`,
+`M_Lawn`, `M_Pier`), and **import `details/SM_DetailsPalette.obj`** (new:
 doors, shutter, pole, transformer, wire, lookout deck, railing, and the escadaria paints, lamp, murals, bar). Then for each level (`L_Rio_Test_Vidigal`,
 `L_Rio_Test_Lagoa`, `L_Rio_Test_LeblonArpoador`):
 `$P unreal/ue_remote.py unreal/import_area.py '{"aoi": "<aoi>"}'`. Place the Vidigal PlayerStart at
@@ -110,6 +116,8 @@ Fly to the spots in **`UnrealDebugGuide.md` -> "Vidigal hub, layout 2"** (UTM + 
 4f. Beaches and Copacabana (spots: `UnrealDebugGuide.md` -> "Beach life, facades, Copacabana"): umbrella / chair
     scale, frame rate at Posto 9, courts, facade colours, sand edge vs calcadao, the Posto 6 hump (decide option A
     together with Problem 2), the Tunel Novo slope.
+4g. Arpoador and the Forte (spots: `UnrealDebugGuide.md` -> "Arpoador and the Forte"): rock silhouette and paths,
+    fortress roof / cupolas / wall vs photos.
 5. Report back anything off; layout changes go in `config/project.json -> places.hubs[0]`, then re-run
    `build_area.py` + `build_places.py`.
 

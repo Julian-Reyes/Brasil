@@ -54,6 +54,8 @@ PALETTE = {
     "M_FacadeWhite": (0.90, 0.89, 0.86), "M_FacadeCream": (0.88, 0.83, 0.70), "M_FacadeBeige": (0.78, 0.71, 0.60),
     "M_FacadeGrey": (0.66, 0.67, 0.68), "M_FacadeConcrete": (0.56, 0.55, 0.52), "M_FacadeSalmon": (0.86, 0.66, 0.58),
     "M_FacadeBlue": (0.64, 0.74, 0.80), "M_GroundFloor": (0.24, 0.25, 0.27), "M_RoofConcrete": (0.50, 0.49, 0.47),
+    # landmark complexes (config headlands): Forte de Copacabana fortress and museum buildings
+    "M_FortConcrete": (0.58, 0.58, 0.55), "M_FortColonial": (0.92, 0.84, 0.62),
 }
 GEN_TAG = "RioGenerated"
 
@@ -118,6 +120,35 @@ def main():
     # ---------------- terrain
     hs = [bld.building_height(r, bool(r["informal"]), bcfg) for _, r in buildings.iterrows()]
     buildings["height_m"], buildings["height_src"] = [h for h, _ in hs], [s for _, s in hs]
+    # landmark complexes (rio_geo/fort.py builds the rest): fixed heights / materials for their buildings
+    hcfg = CONFIG.get("headlands", {})
+    lm_count = 0
+    if "material" not in buildings:
+        buildings["material"] = None
+    for lm in hcfg.get("landmark_buildings", []):
+        hit = buildings["id"].astype(str).eq(str(lm["osm_id"])) if "id" in buildings else []
+        if len(hit) and hit.any():
+            buildings.loc[hit, ["height_m", "height_src", "material"]] = [lm["height_m"], "landmark", lm["material"]]
+            lm_count += int(hit.sum())
+    for zone in hcfg.get("landmark_zones", []):
+        path = osm / f"{zone['set']}.gpkg"
+        if not path.exists():
+            continue
+        za = gpd.read_file(path, layer="areas")
+        sel = za[za["name"].astype(str).eq(zone["name"]) & za[zone["key"]].astype(str).eq(zone["value"])]
+        if not len(sel):
+            continue
+        zpoly = sel.geometry.union_all()
+        inz = buildings.geometry.centroid.within(zpoly) & buildings["height_src"].ne("landmark")
+        for i in np.flatnonzero(inz.to_numpy()):
+            lo, hi = zone["levels"]
+            lv = lo + int(stable_unit(("zone", str(buildings["id"].iat[i]) if "id" in buildings else i)) * (hi - lo + 1))
+            buildings.iat[i, buildings.columns.get_loc("height_m")] = lv * bcfg["storey_m"] + 0.5
+            buildings.iat[i, buildings.columns.get_loc("height_src")] = "landmark_zone"
+            buildings.iat[i, buildings.columns.get_loc("material")] = zone["material"]
+            lm_count += 1
+    if lm_count:
+        log(f"landmark buildings: {lm_count} (fixed height / material)")
     margin = 1000.0
     dsm, dsm_tf = ter.load_dsm_window(PROCESSED_DIR / "dem" / "full_10m.tif", bbox, margin=margin)
 
@@ -126,7 +157,7 @@ def main():
     fcfg = CONFIG["favela_infill"]
     infill_report, infill = [], gpd.GeoDataFrame(geometry=[], crs=PROJECTED_CRS)
     buildings["water_tank"] = False
-    buildings["material"], buildings["parapet"], buildings["roof_room"] = None, False, False
+    buildings["parapet"], buildings["roof_room"] = False, False  # "material" keeps landmark overrides (above)
     buildings["frontage"] = ""
     if fcfg["enabled"] and fcfg.get("style_mapped_informal"):  # mapped favela houses get the same looks
         for i in np.flatnonzero(buildings["informal"].to_numpy()):
@@ -173,6 +204,22 @@ def main():
             f"elements; removed {int(hit.sum())} houses from them")
         buildings = buildings[~hit].reset_index(drop=True)
 
+    # Coastal headlands (natural cover, military land, forts) keep their relief: no lowland opening, no shore caps.
+    headland_polys = []
+    if (osm / "reference.gpkg").exists():
+        cover = set(hcfg.get("protect_natural", []))
+        cand = list(ref[ref["natural"].astype(str).isin(cover)].geometry)
+        if pitch_areas is not None:
+            pa = pitch_areas
+            for key, vals in hcfg.get("protect_tags", {}).items():
+                if key in pa:
+                    cand += list(pa[pa[key].astype(str).isin(vals)].geometry)
+        coast = gpd.read_file(osm / "reference.gpkg", layer="lines")
+        coast = coast[coast["natural"].astype(str).eq("coastline")].geometry.union_all() if len(coast) else None
+        if coast is not None and not coast.is_empty:
+            reach = coast.buffer(hcfg.get("protect_coast_m", 250.0))
+            headland_polys = [g for g in cand if g.intersects(reach)]
+        log(f"headlands: {len(headland_polys)} coastal polygons kept out of the lowland opening and shore caps")
     full_path = RAW_DIR / "osm" / "full" / "buildings.gpkg"
     if args.aoi != "full" and full_path.exists():
         ctx = gpd.read_file(full_path, bbox=(W - margin, S - margin, E + margin, N + margin))
@@ -181,10 +228,10 @@ def main():
         ctx["informal"] = ctx.geometry.centroid.within(favela_union) if favela_union is not None else False
         ctx_h = [bld.building_height(r, bool(r["informal"]), bcfg)[0] for _, r in ctx.iterrows()]
         log(f"ground model uses {len(ctx)} full-region buildings within the DEM window")
-        ground10, _ = ter.ground_from_dsm(dsm, dsm_tf, ctx.geometry, ctx_h)
+        ground10, _ = ter.ground_from_dsm(dsm, dsm_tf, ctx.geometry, ctx_h, protect=headland_polys)
     else:
         log("WARNING: full-region buildings not available; ground model limited to AOI buildings")
-        ground10, _ = ter.ground_from_dsm(dsm, dsm_tf, buildings.geometry, buildings["height_m"])
+        ground10, _ = ter.ground_from_dsm(dsm, dsm_tf, buildings.geometry, buildings["height_m"], protect=headland_polys)
     peaks_report = []
     full_ref = RAW_DIR / "osm" / "full" / "reference.gpkg"
     if full_ref.exists():  # peaks from the full extract: a summit just outside the AOI still shapes its slopes
@@ -229,7 +276,8 @@ def main():
         beaches = ref[ref["natural"].astype(str).eq("beach") & (ref.area >= ccfg["beach_min_area_m2"])]
         anchors = [(b["geom"], b["level_m"]) for b in water_bodies] + \
                   [(g, ccfg["beach_level_m"], "beach") for g in beaches.geometry]
-        lowered = ter.cap_flat_shores(ground, anchors, ccfg)
+        headland_mask = ter.polygon_mask(ground, headland_polys)
+        lowered = ter.cap_flat_shores(ground, anchors, ccfg, protect_mask=headland_mask)
         shore_cap = {"anchors": len(anchors), "beaches": sorted(set(beaches["name"].dropna())),
                      "cells_lowered_over_1m": int((lowered > 1.0).sum()), "max_lowered_m": round(float(lowered.max()), 2)}
         log(f"flat-shore cap: {len(anchors)} anchors; lowered {shore_cap['cells_lowered_over_1m']} cells by > 1 m "
@@ -240,7 +288,7 @@ def main():
             front = edges[names.isin(ff["ground_names"])] if names is not None else edges.iloc[:0]
             nat = ref[ref["natural"].astype(str).isin(["wood", "scrub", "bare_rock", "grassland", "heath", "cliff"])
                       | ref["landuse"].astype(str).isin(["forest", "meadow"])].geometry
-            protect = list(nat) + ([favela_union] if favela_union is not None else [])
+            protect = list(nat) + headland_polys + ([favela_union] if favela_union is not None else [])
             low = ter.cap_front_roads(ground, list(front.geometry), ff,
                                       footprints=list(buildings.loc[~buildings["informal"]].geometry), protect=protect)
             shore_cap["front_roads_lowered_over_1m"] = int((low > 1.0).sum())
@@ -254,6 +302,19 @@ def main():
                      "z_after": round(float(ground.z[r, c]), 1)} for r, c in big[order]]
             log(f"beachfront ground cap: {len(front)} edges; lowered {int((low > 1.0).sum())} cells by > 1 m "
                 f"(max {low.max():.1f} m)")
+        pts = gpd.read_file(osm / "reference.gpkg", layer="points")
+        for hd in hcfg.get("rebuild", []):
+            rock = ref[ref["name"].astype(str).eq(hd["polygon_name"])]
+            peak = pts[pts["name"].astype(str).eq(hd["peak"])]
+            if not len(rock) or not len(peak):
+                log(f"headland {hd['polygon_name']}: not in this AOI")
+                continue
+            poly = rock.geometry.union_all()
+            near = ref[ref["natural"].astype(str).eq("bare_rock") & ref.geometry.intersects(poly.buffer(hd["merge_m"]))]
+            poly = shapely.union_all([poly, *near.geometry])
+            top = ter.rebuild_headland(ground, poly, (peak.geometry.x.iat[0], peak.geometry.y.iat[0]), hd["ele_m"], hd)
+            log(f"headland {hd['polygon_name']}: rebuilt to {top:.1f} m (peak {hd['peak']} {hd['ele_m']} m), "
+                f"{poly.area:.0f} m2")
         wet = ter.carve_water(ground, [(b["geom"], b["level_m"]) for b in water_bodies], wcfg)
         log(f"inland water: {len(water_bodies)} bodies, {wet.mean():.1%} of the AOI; "
             + ", ".join(f"{b['name'] or b['kind']} @ {b['level_m']} m ({b['level_source']})"

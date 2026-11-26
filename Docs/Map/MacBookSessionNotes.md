@@ -846,3 +846,56 @@ triangles in the area tiles. Pavao-Pavaozinho gets favela infill, doors and pole
 * Sand edge: with the new ramp the terrain under the beach is lower; look for gaps under the calcadao skirt (0.6 m)
   where the calcadao is up to 3.9 m above the terrain in Copacabana (`terrain_above_calcadao_m` min -3.89).
 * Copacabana: the Posto 6 hump (above), the Tunel Novo portal slope (cut 33 m to 7.6 m: real hill or residue?).
+
+# Session 13 (2026-11-26, MacBook): Pedra do Arpoador and the Forte de Copacabana
+
+Same branch `macbook/beach-life`. Renders: `screenshots/arpoador_rock.png`, `forte_copacabana.png`,
+`forte_fortress_roof.png`. Spots: `UnrealDebugGuide.md` -> "Arpoador and the Forte".
+
+## What was wrong (since the first beach build)
+
+Both headlands were flat at ~1 m. Two causes:
+* **Copernicus has no Pedra do Arpoador**: its water mask puts the whole rock at 0.0 m (the DSM is 0 over
+  E685300-685560 N7456330-7456470). Nothing to recover from the data.
+* **The lowland opening erased the Forte**: the DSM still had 12-18 m on the peninsula, but step 2 of
+  `ground_from_dsm` (min with a 150 m morphological opening, meant for rooftop residue on the Leblon / Ipanema
+  plain) removes anything narrower than 150 m. The hill between Arpoador and the Forte (up to 43 m in the DSM) was
+  also cut.
+
+## Fixes (`headlands` in the config)
+
+* **Coastal headlands are protected**: natural cover (wood, scrub, bare rock, ...) from the reference layer plus
+  military land / forts / museums from the feature sets, within 250 m of the coastline, skip the lowland opening,
+  the flat-shore cap and the beachfront ground cap. 56 polygons in Leblon-Arpoador, 62 in Copacabana, 4 in Vidigal
+  (Av. Niemeyer coast; Vidigal numbers unchanged), 0 in Lagoa.
+* **Pedra do Arpoador rebuilt** (`terrain.rebuild_headland`) from its OSM `bare_rock` outline (+ the adjacent
+  unnamed rock) with the OSM peak Ponta do Arpoador (16 m): steep face from the waterline, highest towards the
+  peak; summit 14.0 m at E685440 N7456365 (the peak node itself is 16 m outside the mapped rock, in the water).
+  The faces below sea level look stepped in the renders (no sea plane there); the sea covers them in Unreal.
+* **Forte peninsula** keeps its DSM relief: 12-17.5 m along the spine, low shore paths, the fortress at the tip
+  on ~1 m rock.
+
+## The Forte de Copacabana complex (new `rio_geo/fort.py`, run by `build_places.py`)
+
+New feature set `forte` (`fetch_beach.py --set forte`, both beach areas): fort, museum grounds, military land,
+lawns, rock / wood / scrub, gates / sally port / entrances, pier, helipad, fire station, Clube dos Marimbas.
+* **1914 fortress** (OSM way 371926003): 6 m massive block, `M_FortConcrete`, walkable roof (OSM has footways on
+  it), 1 m parapet, cupolas (`M_FortTurret`) with guns (`M_FortGun`) aimed out to sea. Config has 4 cupolas;
+  2 fit inside the footprint with the current spacing. Height / cupola layout are guesses: check photos.
+* **Museum grounds buildings**: low colonial blocks (1-2 storeys, `M_FortColonial`) instead of random facades;
+  the fire station and Clube dos Marimbas at the entrance are 2-3 storeys (were 40 m default towers).
+* **Perimeter wall** (`M_FortWall`, 3.2 m) along the grounds outline, clear of the coastline, buildings and the
+  gate / sally port / entrances: 833 m, reads as ramparts along both shores with the opening at Posto 6.
+* **Lawns** (4, `M_Lawn`) and the **fishermen's pier** at Posto 6 (`M_Pier`).
+* Markers: Forte de Copacabana (fort), Confeitaria Colombo, Cafe 18 do Forte (cafe), Pedra do Arpoador (lookout).
+* The complete fort is in `test_copacabana`. `test_leblon_arpoador` ends at E686000, inside the fort: it has the
+  west part only (no fortress; its fort stats report a meaningless fortress_top).
+
+Also: `test_copacabana` now spans N7456000-7460000 (includes the Pedra); `build_area.py` no longer resets
+building materials during the favela setup (landmark materials were lost).
+
+## Open / to check in the editor
+
+* Pedra do Arpoador: shape and height from Ipanema (sightline in `DesignPriorities.md`), walking up the paths.
+* Forte: fortress height and cupolas vs photos; is the wall in the right places (real ramparts / sea walls);
+  colonial buildings' size; the oval service road around the parade ground; pier height.

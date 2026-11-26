@@ -41,7 +41,7 @@ def load_dsm_window(dem_path, bounds, margin):
 
 
 def ground_from_dsm(dsm, transform, footprints, heights, gain=1.2, blur_m=15.0,
-                    lowland_max_m=15.0):
+                    lowland_max_m=15.0, protect=None):
     """Copernicus GLO-30 is a surface model. Remove the built-up surface in two passes:
 
     1. Subtract the mapped building volume: mean building height per DEM cell (rasterised at 1/5 of the
@@ -51,6 +51,9 @@ def ground_from_dsm(dsm, transform, footprints, heights, gain=1.2, blur_m=15.0,
        opening to remove the residual roof signal. Never applied on slopes, where it would cut terraces.
 
     Sea (DSM <= 0.05, connected to the raster edge) becomes a gently sloping seabed.
+
+    `protect`: polygons exempt from step 2 (coastal headlands: the Forte de Copacabana peninsula is ~120 m wide,
+    so the 150 m opening flattened its 12-18 m of real relief to sea level).
     """
     res = transform.a
     shape = dsm.shape
@@ -66,6 +69,9 @@ def ground_from_dsm(dsm, transform, footprints, heights, gain=1.2, blur_m=15.0,
     # bumps make the dense Leblon/Ipanema plain look sloped. Hills keep a high opened surface, so are untouched.
     w_low = np.clip((lowland_max_m - opened) / 5.0, 0, 1)
     w_low = ndimage.gaussian_filter(w_low, 20.0 / res)
+    if protect:
+        pm = rasterize(((g, 1) for g in protect), out_shape=shape, transform=transform, fill=0, dtype="uint8")
+        w_low = w_low * (1 - np.clip(ndimage.gaussian_filter(pm.astype(float), 10.0 / res) * 2, 0, 1))
     ground = ground * (1 - w_low) + np.minimum(ground, opened) * w_low
 
     water = dsm <= 0.05
@@ -238,7 +244,41 @@ def load_terrain_from_manifest(manifest, bbox, step):
     return Heightfield(w, s, step, z)
 
 
-def cap_flat_shores(hf, anchors, ccfg):
+def polygon_mask(hf, polys):
+    """Boolean grid mask of cells inside any polygon."""
+    import shapely
+    if not polys:
+        return np.zeros(hf.shape, bool)
+    u = shapely.union_all(list(polys))
+    xs, ys = hf.coords()
+    X, Y = np.meshgrid(xs, ys)
+    w, s, e, n = u.bounds
+    win = (X >= w) & (X <= e) & (Y >= s) & (Y <= n)
+    m = np.zeros(hf.shape, bool)
+    m[win] = shapely.contains_xy(u, X[win], Y[win])
+    return m
+
+
+def rebuild_headland(hf, poly, peak_xy, ele, hcfg):
+    """Rock whose relief the DSM lost (Copernicus' water mask sets the Pedra do Arpoador to 0 m). Inside `poly`
+    the ground becomes  ele x smoothstep(edge distance x face_slope / ele) x (1 - summit_falloff x d_peak / d_max):
+    a steep face from the waterline, highest at the OSM peak. Only raises. Returns the max height reached."""
+    inside = polygon_mask(hf, [poly])
+    if not inside.any():
+        return None
+    d_edge = ndimage.distance_transform_edt(inside) * hf.step
+    t = np.clip(d_edge * hcfg["face_slope"] / ele, 0, 1)
+    s = t * t * (3 - 2 * t)
+    xs, ys = hf.coords()
+    X, Y = np.meshgrid(xs, ys)
+    dp = np.hypot(X - peak_xy[0], Y - peak_xy[1])
+    f = 1 - hcfg["summit_falloff"] * np.clip(dp / max(dp[inside].max(), 1.0), 0, 1)
+    z = ndimage.gaussian_filter(np.where(inside, ele * s * f, 0.0), 1.2)  # soften the grid-stepped faces
+    hf.z = np.where(inside, np.maximum(hf.z, z), hf.z)
+    return float(hf.z[inside].max())
+
+
+def cap_flat_shores(hf, anchors, ccfg, protect_mask=None):
     """Flat-shore cap. The 10 m DSM smears tall waterfront buildings, trees and the hillsides behind them onto
     the narrow coastal strips, which the building subtraction and the lowland opening do not fully remove
     (Lagoa east shore: ground 11.6 m where the road is at ~2.5 m; beachfront road bumps of 3-5 m).
@@ -281,6 +321,8 @@ def cap_flat_shores(hf, anchors, ccfg):
         else:
             floor = np.where((wt > 0) & ~inside, np.maximum(floor, level + ccfg["bank_m"]), floor)
         weight = np.maximum(weight, np.where(wt > 0, wt, 0))
+    if protect_mask is not None:  # coastal headlands keep their relief
+        weight = np.where(protect_mask, 0.0, weight)
     before = hf.z.copy()
     capped = np.minimum(hf.z, np.where(np.isfinite(cap), cap, hf.z))
     capped = np.maximum(capped, np.where(np.isfinite(floor), floor, capped))
