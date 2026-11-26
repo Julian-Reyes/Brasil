@@ -4,7 +4,9 @@ Read this first, then `README.md`, `DesignPriorities.md` and `Tools/GeoPipeline/
 
 ## START HERE ON THE MAC MINI (written 2026-11-24, updated 2026-11-25 on the MacBook)
 
-Branch: **`macbook/beach-life`** (contains everything: `macbook/vidigal` + the offline OSM source + the
+Branch: **`macbook/centro`** (= `macbook/beach-life` + the Centro area and the landmark registry, Sessions 16-17;
+extra steps: `clip_osm.py --aoi test_centro`, `fetch_beach.py --aoi test_centro --set centro`, then build_area / build_places /
+build_details for `test_centro`, new level `L_Rio_Test_Centro`). Before that: **`macbook/beach-life`** (contains everything: `macbook/vidigal` + the offline OSM source + the
 hub work in `macbook/vidigal-hub` + the favela infill in `macbook/vidigal-infill` + the step 5 street details in
 `macbook/vidigal-details` + the step 6 signature escadarias in `macbook/vidigal-escadarias` + turnarounds and
 linked poles in `macbook/vidigal-lanes-poles` + beach life, formal facades, beach terrain fixes and the new
@@ -90,7 +92,8 @@ from `build_details.py`: `doors: {'doors': 12155, 'shutters': 487, ...}`, `poles
 
 In the editor (one time, with materials, into `/Game/Rio/Materials/Blockout/`): re-import
 `SM_BlockoutPalette.obj` (has `M_WaterTank`, the house facades `M_HouseRender`, `M_HousePaint*` and, new in
-Session 12, `M_Facade*`, `M_GroundFloor`, `M_RoofConcrete`; Session 13 `M_FortConcrete`, `M_FortColonial`), import `beach/SM_BeachPalette.obj` (Session 12 adds
+Session 12, `M_Facade*`, `M_GroundFloor`, `M_RoofConcrete`; Session 13 `M_FortConcrete`, `M_FortColonial`;
+Session 17 `M_Landmark`, `M_LandmarkConcrete`, `M_ManualPlaceholder`), import `beach/SM_BeachPalette.obj` (Session 12 adds
 `M_Umbrella*`, `M_ChairFrame`, `M_Barraca`, `M_CourtLine`, `M_NetPost`, `M_Net`), `shore/SM_ShorePalette.obj`,
 **re-import `places/SM_PlacesPalette.obj`** (new `M_Stair`; Session 13 adds `M_FortTurret`, `M_FortGun`, `M_FortWall`,
 `M_Lawn`, `M_Pier`), and **import `details/SM_DetailsPalette.obj`** (new:

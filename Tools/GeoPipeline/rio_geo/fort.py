@@ -1,7 +1,7 @@
 """Forte de Copacabana: the landmark complex on the peninsula east of Posto 6 (build_places.py, kind Places).
 
 build_area.py already places the buildings (the 1914 fortress as a low, massive concrete block with
-`headlands.landmark_buildings`; the museum grounds' buildings as low colonial blocks with `landmark_zones`) and
+the landmark registry (config `landmarks.buildings`); the museum grounds' buildings as low colonial blocks with `landmark_zones`) and
 keeps the peninsula's relief (`headlands`). This module adds what makes it read as a fort:
 
   * the fortress roof: perimeter parapet, two large and two small gun cupolas along its long axis, guns aimed
@@ -43,7 +43,7 @@ def _dome(c, z0, r, sides=14, rings=4):
     return np.array(verts), np.array(tris)
 
 
-def build(areas, features, buildings, coast, terrain, tm, cfg):
+def build(areas, features, buildings, coast, terrain, tm, cfg, registry=None):
     """areas / features: forte.gpkg layers; buildings: buildings.gpkg; coast: coastline geometry or None;
     terrain: Heightfield; tm: places TiledMesh. Returns statistics (None if the fort is not in this AOI)."""
     fc = cfg["fort"]
@@ -54,7 +54,7 @@ def build(areas, features, buildings, coast, terrain, tm, cfg):
         return None
     grounds = gsel.geometry.union_all()
     fortress = max(getattr(fsel.geometry.iat[0], "geoms", [fsel.geometry.iat[0]]), key=lambda p: p.area)
-    lm = {b["osm_id"]: b for b in cfg["landmark_buildings"]}[fc["fortress_osm_id"]]
+    lm = (registry or {}).get(str(fc["fortress_osm_id"])) or {"height_m": 6.0}
     ring = np.asarray(fortress.exterior.coords)
     top = float(terrain.sample(ring[:, 0], ring[:, 1]).max()) + lm["height_m"]
     stats = {"fortress_top_m": round(top, 1), "cupolas": 0, "wall_m": 0.0, "lawns": 0, "piers": 0}
@@ -78,12 +78,14 @@ def build(areas, features, buildings, coast, terrain, tm, cfg):
         if not fortress.buffer(-cu["radius_m"] * 0.6).contains(Point(*c)):
             continue
         add("M_FortTurret", _dome(c, top, cu["radius_m"]), c)
-        aim = np.arctan2(out[1], out[0]) + np.radians((-20, 20, -35, 35)[k % 4])
+        aim = np.arctan2(out[1], out[0]) + np.radians((-25, 25, -35, 35)[k % 4])
         d = np.array([np.cos(aim), np.sin(aim)])
         zg = top + 0.6 + 0.25 * cu["radius_m"]
-        start = c + d * cu["radius_m"] * 0.7
-        mid = start + d * cu["gun_m"] / 2
-        add("M_FortGun", box(mid, aim, (cu["gun_m"], 0.45 if cu["radius_m"] > 3 else 0.3), zg - 0.22, zg + 0.22), mid)
+        side = np.array([-d[1], d[0]])
+        for s in (-1, 1):  # each cupola carries a pair of guns
+            start = c + d * cu["radius_m"] * 0.7 + side * s * cu["radius_m"] * 0.22
+            mid = start + d * cu["gun_m"] / 2
+            add("M_FortGun", box(mid, aim, (cu["gun_m"], 0.45 if cu["radius_m"] > 4 else 0.32), zg - 0.22, zg + 0.22), mid)
         stats["cupolas"] += 1
 
     # ---- perimeter wall on the land side of the grounds, open at gates and clear of coast / buildings

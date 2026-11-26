@@ -962,3 +962,51 @@ colours, roof machine rooms): Museu do Amanha 24.5, MAR 27.5, Paco Imperial 24.5
 Artes 33.5, Sao Bento 39.5, Monumento aos Pracinhas 33.5, Outeiro da Gloria 33.5, Ilha Fiscal castle 36.5. The Arcos
 da Lapa are a solid 27.5 m block (should be arches). Arco do Teles has an OSM height of 42.4 m (looks wrong).
 Same issue as the forts' guessed heights (Session 15 follow-up). Next: a landmark registry with sourced dimensions.
+
+
+# Session 17 (2026-11-26, MacBook): landmark registry (true sizes), airport flattened
+
+Branch `macbook/centro`. New config section **`landmarks`** + `rio_geo/landmarks.py`. Plan size always comes from the
+OSM outline (cross-checks: Catedral OSM 107 x 106 m vs published 106 m diameter; Ilha Fiscal 68 x 27 m vs 68 x 28 m;
+Museu do Amanha outline 336 m = roof tip to tip). The registry sets height and form, each entry with `confidence`
+(`sourced` / `osm` / `estimate`) and its source URL. **Estimates are placeholders to verify against photos.**
+Renders: `screenshots/centro_lapa_arcos_catedral.png`, `centro_candelaria_ccbb.png`, `centro_praca_maua.png`,
+`forte_fortress_roof.png`.
+
+| Landmark | Height | Form | Confidence | Hand-made | Source |
+|---|---|---|---|---|---|
+| Forte de Copacabana (1914 fortress) | 6 m | box | estimate |  | https://en.wikipedia.org/wiki/Fort_Copacabana |
+| Forte Duque de Caxias (Forte do Leme) | 5 m | box | estimate |  | https://diariodorio.com/historia-do-forte-duque-de-caxias-no-leme/ |
+| Museu do Amanha | 18 m | box | sourced | yes | https://www.archdaily.com/785442/museum-of-tomorrow-santiago-calatrava |
+| Catedral Metropolitana de Sao Sebastiao | 75 m | cone | sourced |  | https://riotur.rio/?p=44825 |
+| Arcos da Lapa (Aqueduto da Carioca) | 17.6 m | arcade | sourced |  | https://structurae.net/en/structures/carioca-aqueduct |
+| Igreja de Nossa Senhora da Candelaria | 22 m | box + dome to 63 m | estimate |  | https://bmcnews.com.br/ultimas-noticias/com-cupula-de-63-metros-de-altura-e-portas-de-3-toneladas-a-candelaria-surge-como-um-marco-recorde-da-engenharia-carioca/ |
+| Theatro Municipal | 20.56 m | box | osm | yes | OSM |
+| Real Gabinete Portugues de Leitura | 17.1 m | box | osm | yes | OSM |
+| Biblioteca Nacional | 23.4 m | box | osm |  | OSM |
+| Museu Nacional de Belas Artes | 20 m | box | estimate |  | https://en.wikipedia.org/wiki/Museu_Nacional_de_Belas_Artes |
+| Paco Imperial | 11 m | box | estimate |  | https://www.gov.br/iphan/pt-br/unidades-especiais/centro-cultural-paco-imperial/paco_nov2023_livretohistoria-_af.pdf |
+| Centro Cultural Banco do Brasil | 24 m | box + dome to 32 m | estimate |  | https://diariodorio.com/historia-do-predio-do-ccbb/ |
+| Igreja e Mosteiro de Sao Bento | 16 m | box | estimate |  | https://www.wikipedia.org/wiki/S%C3%A3o_Bento_Monastery |
+| Museu de Arte do Rio (Palacete Dom Joao VI) | 16 m | box | estimate | yes | https://en.wikipedia.org/wiki/Museu_de_Arte_do_Rio |
+| Arco do Teles | 13 m | box | estimate |  | https://riomemorias.com.br/?p=16271 |
+| Igreja de Nossa Senhora da Gloria do Outeiro | 14 m | box | estimate |  | https://www.guiadasemana.com.br/rio-de-janeiro/turismo/estabelecimento/igreja-da-nossa-senhora-da-gloria-do-outeiro |
+| Castelo da Ilha Fiscal | 11 m | box | estimate | yes | https://portal.sescsp.org.br/online/artigo/compartilhar/7387_ILHA+FISCAL+ONDE+O+IMPERIO+DESABOU+EM+RITMO+DE+VALSA |
+| Monumento Nacional aos Mortos da Segunda Guerra Mundial | 6 m | box | estimate | yes | https://www.portalsaofrancisco.com.br/?p=47745 |
+
+Forms: `cone` (Catedral), `arcade` (Arcos da Lapa: 2 tiers x 21 square-topped openings, level top at min ground +
+17.6 m; piers on the local ground, the aqueduct runs into the Santa Teresa slope), `dome` (drum + dome on the box:
+Candelaria, CCBB rotunda). `manual: true` = true-size placeholder in `M_ManualPlaceholder` (magenta) for a hand-made
+model in `/Game/Rio/Manual`: Museu do Amanha (roof), Theatro Municipal, Real Gabinete, MAR, Ilha Fiscal castle,
+Monumento aos Pracinhas (31 m twin pillars). New blockout materials `M_Landmark`, `M_LandmarkConcrete`,
+`M_ManualPlaceholder` (re-import `SM_BlockoutPalette.obj`).
+
+* **Forte de Copacabana corrected:** 2 armoured cupolas (305 mm "Duque de Caxias", 190 mm "Andre Vidal"; Wikipedia),
+  each with a pair of guns (was 4 guessed cupolas with single guns). Fort heights remain estimates (no published
+  figures found).
+* **Airport flattened** (`landmarks.flatten`): the Santos Dumont aerodrome polygon is set to its median ground,
+  1.99 m (max change 3.8 m), runways now level end to end.
+* Bug fixed: building OSM ids become floats once infill rows are concatenated; registry forms now match
+  (`landmarks.osm_id_str`).
+* Not found anywhere public (all estimates): Paco Imperial, Sao Bento, CCBB, Belas Artes, MAR, Outeiro, Arco do Teles
+  (OSM 42.4 m rejected), Ilha Fiscal tower, both forts. Candelaria's 63 m dome has a single non-technical source.

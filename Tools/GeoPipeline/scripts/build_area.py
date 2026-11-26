@@ -32,6 +32,7 @@ from rio_geo import details as dt  # noqa: E402
 from rio_geo import favela as fav  # noqa: E402
 from rio_geo import places as plc  # noqa: E402
 from rio_geo.beach import box as box_mesh  # noqa: E402
+from rio_geo import landmarks as lmk  # noqa: E402
 from rio_geo import roads as rd  # noqa: E402
 from rio_geo import stairs as st  # noqa: E402
 from rio_geo import escadarias as esc  # noqa: E402
@@ -56,6 +57,8 @@ PALETTE = {
     "M_FacadeBlue": (0.64, 0.74, 0.80), "M_GroundFloor": (0.24, 0.25, 0.27), "M_RoofConcrete": (0.50, 0.49, 0.47),
     # landmark complexes (config headlands): Forte de Copacabana fortress and museum buildings
     "M_FortConcrete": (0.58, 0.58, 0.55), "M_FortColonial": (0.92, 0.84, 0.62),
+    # landmark registry (config landmarks): stone / concrete landmarks, placeholder for hand-made models
+    "M_Landmark": (0.93, 0.90, 0.82), "M_LandmarkConcrete": (0.70, 0.70, 0.68), "M_ManualPlaceholder": (0.80, 0.36, 0.72),
 }
 GEN_TAG = "RioGenerated"
 
@@ -126,11 +129,15 @@ def main():
     lm_count = 0
     if "material" not in buildings:
         buildings["material"] = None
-    for lm in hcfg.get("landmark_buildings", []):
-        hit = buildings["id"].astype(str).eq(str(lm["osm_id"])) if "id" in buildings else []
+    lm_reg = lmk.registry(CONFIG.get("landmarks", {}))  # sourced / estimated heights and forms (config landmarks)
+    lm_found = []
+    for oid, lm in lm_reg.items():
+        hit = buildings["id"].astype(str).eq(oid) if "id" in buildings else []
         if len(hit) and hit.any():
-            buildings.loc[hit, ["height_m", "height_src", "material"]] = [lm["height_m"], "landmark", lm["material"]]
+            buildings.loc[hit, ["height_m", "height_src", "material"]] = [
+                lm["height_m"], f"landmark:{lm.get('confidence', 'estimate')}", lm["material"]]
             lm_count += int(hit.sum())
+            lm_found.append(lm["name"])
     for zone in hcfg.get("landmark_zones", []):
         path = osm / f"{zone['set']}.gpkg"
         if not path.exists():
@@ -149,7 +156,7 @@ def main():
             buildings.iat[i, buildings.columns.get_loc("material")] = zone["material"]
             lm_count += 1
     if lm_count:
-        log(f"landmark buildings: {lm_count} (fixed height / material)")
+        log(f"landmark buildings: {lm_count} (fixed height / material); registry: {', '.join(lm_found) or '-'}")
     margin = 1000.0
     dsm, dsm_tf = ter.load_dsm_window(PROCESSED_DIR / "dem" / "full_10m.tif", bbox, margin=margin)
 
@@ -304,6 +311,15 @@ def main():
                      "z_after": round(float(ground.z[r, c]), 1)} for r, c in big[order]]
             log(f"beachfront ground cap: {len(front)} edges; lowered {int((low > 1.0).sum())} cells by > 1 m "
                 f"(max {low.max():.1f} m)")
+        for fl in CONFIG.get("landmarks", {}).get("flatten", []):  # runways / aprons
+            path = osm / f"{fl['set']}.gpkg"
+            if path.exists():
+                fa = gpd.read_file(path, layer="areas")
+                sel = fa[fa[fl["key"]].astype(str).eq(fl["value"]) & fa["name"].astype(str).eq(fl["name"])] \
+                    if fl["key"] in fa else fa.iloc[:0]
+                if len(sel):
+                    level, change = ter.flatten_area(ground, sel.geometry.union_all(), fl["blend_m"])
+                    log(f"flattened {fl['name']}: level {level:.2f} m (max change {change:.1f} m)")
         pts = gpd.read_file(osm / "reference.gpkg", layer="points")
         for hd in hcfg.get("rebuild", []):
             rock = ref[ref["name"].astype(str).eq(hd["polygon_name"])]
@@ -589,10 +605,20 @@ def main():
                 else:
                     mat = "M_BuildingFormal"
             band_top = zg.max() + style["ground_band_m"] if style and style["ground_band_m"] else None
-            mesh = bld.extrude(poly, band_top if band_top else base, zg.max() + h, pivot)
-            if mesh is None:
-                continue
-            tiles[key]["Buildings"].add(mat, *mesh)
+            lm_e = lm_reg.get(lmk.osm_id_str(r.get("id"))) if "id" in buildings else None
+            off = np.array([pivot[0], pivot[1], 0.0])
+            if lm_e and lm_e.get("form") in ("cone", "arcade"):  # registry forms instead of a prism
+                parts = lmk.cone(poly, zg, lm_e) if lm_e["form"] == "cone" else lmk.arcade(poly, terrain, lm_e)
+                for m_, v_, t_ in parts:
+                    tiles[key]["Buildings"].add(m_, v_ - off, t_)
+            else:
+                mesh = bld.extrude(poly, band_top if band_top else base, zg.max() + h, pivot)
+                if mesh is None:
+                    continue
+                tiles[key]["Buildings"].add(mat, *mesh)
+            if lm_e and lm_e.get("dome"):
+                for m_, v_, t_ in lmk.drum_dome(poly, zg.max() + h, zg.min(), lm_e):
+                    tiles[key]["Buildings"].add(m_, v_ - off, t_)
             if band_top:  # darker shopfront / pilotis storey; its roof face is hidden inside the tower
                 bm = bld.extrude(poly, base, band_top, pivot)
                 if bm is not None:

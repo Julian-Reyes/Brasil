@@ -86,7 +86,8 @@ def main():
         coast = lines[lines["natural"].astype(str).eq("coastline")].geometry.union_all() if len(lines) else None
         fort_stats = fort.build(gpd.read_file(osm / "forte.gpkg", layer="areas"),
                                 gpd.read_file(osm / "forte.gpkg", layer="features"),
-                                gpd.read_file(osm / "buildings.gpkg"), coast, terrain, tm, CONFIG["headlands"])
+                                gpd.read_file(osm / "buildings.gpkg"), coast, terrain, tm, CONFIG["headlands"],
+                                registry={str(e["osm_id"]): e for e in CONFIG.get("landmarks", {}).get("buildings", [])})
         log(f"Forte de Copacabana: {fort_stats if fort_stats else 'not in this AOI'}")
     log(f"terraces {stats['terraces']} ({stats['pitches']} with pitches), retaining walls ~{stats['walls_m']:.0f} m, "
         f"hub buildings {stats['hub_buildings']}, stairs {len(stats['stairs'])}")

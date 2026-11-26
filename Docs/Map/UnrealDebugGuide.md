@@ -283,3 +283,25 @@ part of the fort). Renders: `screenshots/arpoador_rock.png`, `forte_copacabana.p
 What to look at: the rock's silhouette from Posto 9 and from the Arpoador beach; walk the rock paths (complex
 terrain collision); fortress roof walkable with the parapet; cupola / gun scale; the wall line (gaps at the gate,
 not through buildings); peninsula spine 12-17 m; nothing floating where the old flat ground was.
+
+
+## Centro and the landmark registry (2026-11-26, Sessions 16-17)
+
+Level: create `L_Rio_Test_Centro` (`create_test_level.py`) and import `test_centro`. Registry table: `MacBookSessionNotes.md` -> Session 17.
+
+| What | UTM | UE (cm) |
+|---|---|---|
+| Catedral (cone) | E686590 N7465201 | (209000, -420100, 100) |
+| Arcos da Lapa | E686661 N7464948 | (216100, -394800, 100) |
+| Candelaria (dome) | E686901 N7466299 | (240100, -529900, 100) |
+| CCBB rotunda | E686950 N7466280 | (245000, -528000, 100) |
+| Museu do Amanha placeholder | E686746 N7467054 | (224600, -605400, 200) |
+| Confeitaria Colombo | E686797 N7465822 | (229700, -482200, 500) |
+| SAARA | E686409 N7465978 | (190900, -497800, 500) |
+| Real Gabinete | E686433 N7465816 | (193300, -481600, 500) |
+| Pedra do Sal | E686117 N7466620 | (161700, -562000, 800) |
+| Runway 20R/02L mid | E688345 N7465200 | (384500, -420000, 200) |
+
+Check: landmark heights against photos (every `estimate`); the Arcos da Lapa openings and where they meet the Santa
+Teresa slope; the Catedral cone (top diameter is an estimate); magenta placeholders are where hand-made models go;
+runways level at 1.99 m with the blend at the aerodrome edge; 8.1 M triangles (heavy level).

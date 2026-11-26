@@ -278,6 +278,21 @@ def rebuild_headland(hf, poly, peak_xy, ele, hcfg):
     return float(hf.z[inside].max())
 
 
+def flatten_area(hf, poly, blend_m):
+    """Set the ground inside `poly` to its median height (airport runways / aprons), blending back to the
+    natural ground over blend_m outside. Returns (level, max abs change)."""
+    inside = polygon_mask(hf, [poly])
+    if not inside.any():
+        return None, 0.0
+    level = float(np.median(hf.z[inside]))
+    d = ndimage.distance_transform_edt(~inside) * hf.step
+    t = np.clip(d / max(blend_m, 1e-6), 0, 1)
+    w = 1 - t * t * (3 - 2 * t)
+    before = hf.z.copy()
+    hf.z = hf.z * (1 - w) + level * w
+    return level, float(np.abs(hf.z - before).max())
+
+
 def cap_flat_shores(hf, anchors, ccfg, protect_mask=None):
     """Flat-shore cap. The 10 m DSM smears tall waterfront buildings, trees and the hillsides behind them onto
     the narrow coastal strips, which the building subtraction and the lowland opening do not fully remove

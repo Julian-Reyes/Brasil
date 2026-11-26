@@ -189,17 +189,13 @@
   },
 
   "headlands": {
-    "_doc": "Coastal headlands (build_area.py + rio_geo/terrain.py, meshes in rio_geo/fort.py). Polygons of protect_natural (reference layer) and protect_tags (feature-set areas) within protect_coast_m of the coastline skip the lowland opening and the shore / beachfront caps. `rebuild`: rocks the DSM lost (water mask) rebuilt from their OSM outline + peak. landmark_buildings / landmark_zones: fixed heights and materials (blockout guesses, not surveyed).",
+    "_doc": "Coastal headlands (build_area.py + rio_geo/terrain.py, meshes in rio_geo/fort.py). Polygons of protect_natural (reference layer) and protect_tags (feature-set areas) within protect_coast_m of the coastline skip the lowland opening and the shore / beachfront caps. `rebuild`: rocks the DSM lost (water mask) rebuilt from their OSM outline + peak. landmark_zones: fixed heights and materials for whole complexes (blockout guesses). Single landmark buildings: config landmarks.",
     "protect_natural": ["wood", "scrub", "bare_rock", "scree", "rock", "cliff", "heath", "grassland"],
     "protect_tags": {"landuse": ["military"], "historic": ["fort"], "tourism": ["museum"], "natural": ["bare_rock", "wood", "scrub"]},
     "protect_coast_m": 250.0,
     "rebuild": [
       {"polygon_name": "Pedra do Arpoador", "peak": "Ponta do Arpoador", "ele_m": 16.0, "merge_m": 30.0,
        "face_slope": 0.8, "summit_falloff": 0.35}
-    ],
-    "landmark_buildings": [
-      {"osm_id": 371926003, "name": "Forte de Copacabana (1914 fortress)", "height_m": 6.0, "material": "M_FortConcrete"},
-      {"osm_id": 462182014, "name": "Forte Duque de Caxias (Forte do Leme, summit)", "height_m": 5.0, "material": "M_FortConcrete"}
     ],
     "landmark_zones": [
       {"set": "forte", "name": "Forte de Copacabana", "key": "tourism", "value": "museum",
@@ -213,12 +209,41 @@
       "fortress_osm_id": 371926003,
       "grounds": {"name": "Forte de Copacabana", "key": "tourism", "value": "museum"},
       "parapet_m": 1.0,
-      "cupolas": [{"at": 0.3, "radius_m": 4.5, "gun_m": 9.0}, {"at": 0.55, "radius_m": 4.5, "gun_m": 9.0},
-                  {"at": 0.18, "radius_m": 2.8, "gun_m": 5.0}, {"at": 0.75, "radius_m": 2.8, "gun_m": 5.0}],
+      "cupolas": [{"at": 0.35, "radius_m": 4.5, "gun_m": 9.0, "name": "Duque de Caxias (2 x 305 mm)"},
+                  {"at": 0.68, "radius_m": 3.5, "gun_m": 6.0, "name": "Andre Vidal (2 x 190 mm)"}],
+      "_cupolas_source": "Two armoured cupolas: https://en.wikipedia.org/wiki/Fort_Copacabana (positions along the block are estimates).",
       "wall": {"height_m": 3.2, "thickness_m": 0.7, "coast_clear_m": 10.0, "gate_gap_m": 5.0},
       "lawn_lift_m": 0.04,
       "pier_deck_m": 1.6
     }
+  },
+
+  "landmarks": {
+    "_doc": "Landmark registry (scripts/build_area.py + rio_geo/landmarks.py). Plan size always comes from the OSM outline; this sets height and form. confidence: 'sourced' (published figure, see source), 'osm' (OSM height tag), 'estimate' (no published figure found; basis in note: verify against photos / on site). form: box | cone (top_diameter_m) | arcade (tiers, arches_per_tier) | box + dome (drum + dome reaching dome.top_m). manual: true = shape needs a hand-made model in /Game/Rio/Manual; the pipeline places a true-size placeholder (M_ManualPlaceholder).",
+    "buildings": [
+      {"osm_id": 371926003, "name": "Forte de Copacabana (1914 fortress)", "height_m": 6.0, "material": "M_FortConcrete", "confidence": "estimate", "note": "No published height; the casemate block is largely set into the rock. Two armoured cupolas (305 mm 'Duque de Caxias', 190 mm 'Andre Vidal').", "source": "https://en.wikipedia.org/wiki/Fort_Copacabana"},
+      {"osm_id": 462182014, "name": "Forte Duque de Caxias (Forte do Leme)", "height_m": 5.0, "material": "M_FortConcrete", "confidence": "estimate", "note": "Current fort built 1913-1919 on the summit of Morro do Leme; no published dimensions. OSM maps 4 cannons on it.", "source": "https://diariodorio.com/historia-do-forte-duque-de-caxias-no-leme/"},
+      {"osm_id": 372720167, "name": "Museu do Amanha", "height_m": 18.0, "material": "M_ManualPlaceholder", "manual": true, "confidence": "sourced", "note": "Envelope limited to 18 m above the pier (protects the view of Sao Bento). OSM outline (336 m) is the roof incl. the 75 m (plaza) and 45 m (bay) cantilevers. Roof needs a hand-made mesh.", "source": "https://www.archdaily.com/785442/museum-of-tomorrow-santiago-calatrava"},
+      {"osm_id": 30621926, "name": "Catedral Metropolitana de Sao Sebastiao", "height_m": 75.0, "form": "cone", "top_diameter_m": 40.0, "material": "M_LandmarkConcrete", "confidence": "sourced", "note": "75 m high, 106 m base diameter (OSM outline 107 x 106 m agrees). Top diameter 40 m is an estimate.", "source": "https://riotur.rio/?p=44825"},
+      {"osm_id": 154966398, "name": "Arcos da Lapa (Aqueduto da Carioca)", "height_m": 17.6, "form": "arcade", "tiers": 2, "arches_per_tier": 21, "material": "M_Landmark", "confidence": "sourced", "note": "17.6 m max height, ~270 m, 42 arches on two tiers (OSM outline 308 m). Level top (water channel); arches drawn as square-topped openings in the blockout.", "source": "https://structurae.net/en/structures/carioca-aqueduct"},
+      {"osm_id": 30839484, "name": "Igreja de Nossa Senhora da Candelaria", "height_m": 22.0, "dome": {"top_m": 63.0, "radius_m": 9.0}, "material": "M_Landmark", "confidence": "estimate", "note": "Dome ~63 m (single non-technical source). Nave height and dome radius estimated; two bell towers not modelled yet.", "source": "https://bmcnews.com.br/ultimas-noticias/com-cupula-de-63-metros-de-altura-e-portas-de-3-toneladas-a-candelaria-surge-como-um-marco-recorde-da-engenharia-carioca/"},
+      {"osm_id": 107748847, "name": "Theatro Municipal", "height_m": 20.56, "material": "M_Landmark", "manual": true, "confidence": "osm", "note": "OSM height. Facade / green domes need a hand-made model."},
+      {"osm_id": 196742718, "name": "Real Gabinete Portugues de Leitura", "height_m": 17.1, "material": "M_Landmark", "manual": true, "confidence": "osm", "note": "OSM height. Neo-Manueline facade and the reading room interior need a hand-made model."},
+      {"osm_id": 1229035013, "name": "Biblioteca Nacional", "height_m": 23.4, "material": "M_Landmark", "confidence": "osm"},
+      {"osm_id": 6904053, "name": "Museu Nacional de Belas Artes", "height_m": 20.0, "material": "M_Landmark", "confidence": "estimate", "note": "No published height; eclectic 1908 palace, ~3 tall storeys.", "source": "https://en.wikipedia.org/wiki/Museu_Nacional_de_Belas_Artes"},
+      {"osm_id": 4514671, "name": "Paco Imperial", "height_m": 11.0, "material": "M_Landmark", "confidence": "estimate", "note": "No published height; two-storey colonial palace (1738).", "source": "https://www.gov.br/iphan/pt-br/unidades-especiais/centro-cultural-paco-imperial/paco_nov2023_livretohistoria-_af.pdf"},
+      {"osm_id": 30775640, "name": "Centro Cultural Banco do Brasil", "height_m": 24.0, "dome": {"top_m": 32.0, "radius_m": 8.0}, "material": "M_Landmark", "confidence": "estimate", "note": "No published height; 1906 building with an entrance rotunda under a dome. Heights estimated.", "source": "https://diariodorio.com/historia-do-predio-do-ccbb/"},
+      {"osm_id": 30775624, "name": "Igreja e Mosteiro de Sao Bento", "height_m": 16.0, "material": "M_Landmark", "confidence": "estimate", "note": "No published height; mannerist church with two bell towers on Morro de Sao Bento.", "source": "https://www.wikipedia.org/wiki/S%C3%A3o_Bento_Monastery"},
+      {"osm_id": 49657400, "name": "Museu de Arte do Rio (Palacete Dom Joao VI)", "height_m": 16.0, "material": "M_Landmark", "manual": true, "confidence": "estimate", "note": "No published height; 1916 eclectic palacete joined to a 1940s modernist block by the wave-shaped concrete roof (hand-made).", "source": "https://en.wikipedia.org/wiki/Museu_de_Arte_do_Rio"},
+      {"osm_id": 432943641, "name": "Arco do Teles", "height_m": 13.0, "material": "M_Landmark", "confidence": "estimate", "note": "OSM height 42.4 m rejected (18th-century sobrado); 3 storeys estimated.", "source": "https://riomemorias.com.br/?p=16271"},
+      {"osm_id": 30626207, "name": "Igreja de Nossa Senhora da Gloria do Outeiro", "height_m": 14.0, "material": "M_Landmark", "confidence": "estimate", "note": "No published height; small octagonal colonial church (1739) on the Gloria hill.", "source": "https://www.guiadasemana.com.br/rio-de-janeiro/turismo/estabelecimento/igreja-da-nossa-senhora-da-gloria-do-outeiro"},
+      {"osm_id": 40941193, "name": "Castelo da Ilha Fiscal", "height_m": 11.0, "material": "M_Landmark", "manual": true, "confidence": "estimate", "note": "Plan 68 x 28 m sourced (OSM 68 x 27 m). Height and the central tower not published; neo-Gothic castle needs a hand-made model.", "source": "https://portal.sescsp.org.br/online/artigo/compartilhar/7387_ILHA+FISCAL+ONDE+O+IMPERIO+DESABOU+EM+RITMO+DE+VALSA"},
+      {"osm_id": 324035540, "name": "Monumento Nacional aos Mortos da Segunda Guerra Mundial", "height_m": 6.0, "material": "M_LandmarkConcrete", "manual": true, "confidence": "estimate", "note": "Monument 31 m high (twin pillars carrying the slab, hand-made); the OSM outline is the low museum / mausoleum platform, 6 m estimated.", "source": "https://www.portalsaofrancisco.com.br/?p=47745"}
+    ],
+    "flatten": [
+      {"set": "centro", "key": "aeroway", "value": "aerodrome", "name": "Aeroporto Santos Dumont", "blend_m": 20.0,
+       "_note": "Runways / aprons must be flat for planes: the aerodrome polygon is set to its median ground height."}
+    ]
   },
 
   "feature_sets": {

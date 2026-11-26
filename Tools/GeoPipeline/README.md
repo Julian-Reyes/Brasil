@@ -161,6 +161,13 @@ to Copernicus' water mask are rebuilt from their OSM outline and peak (`rebuild`
 fortress roof (parapet, cupolas, guns), the grounds wall with gate gaps, lawns and the Posto 6 pier. New places
 materials: `M_FortTurret`, `M_FortGun`, `M_FortWall`, `M_Lawn`, `M_Pier`.
 
+## Landmark registry (`landmarks` in the config, `rio_geo/landmarks.py`)
+
+One entry per landmark building (OSM id): height, form (`box`, `cone`, `arcade`, optional `dome`), material,
+`confidence` (`sourced` / `osm` / `estimate`) and source URL. Plan size always comes from the OSM outline.
+`manual: true` marks shapes that need a hand-made model (true-size `M_ManualPlaceholder` block). `landmarks.flatten`
+levels areas such as the airport to their median ground.
+
 ## Lake shore promenade (`scripts/build_shore.py`)
 
 Walking + bike lanes, benches, trees / palms and kiosks around `shore.water_name` (Lagoa Rodrigo de Freitas).
