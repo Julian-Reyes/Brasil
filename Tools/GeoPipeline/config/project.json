@@ -40,8 +40,8 @@
       "always_loaded": true
     },
     "test_copacabana": {
-      "description": "Copacabana and Leme test: Av. Atlantica and the beach from Posto 6 / Forte de Copacabana to Leme, back to Cantagalo / Pavao-Pavaozinho and Rua Barata Ribeiro.",
-      "bbox_utm": [685000.0, 7456000.0, 688500.0, 7460000.0],
+      "description": "Copacabana, Leme and Urca test: Pedra do Arpoador and Forte de Copacabana to the Leme point, back to Cantagalo / Pavao-Pavaozinho, Morro da Babilonia, Urca, Praia Vermelha and the Pao de Acucar.",
+      "bbox_utm": [685000.0, 7456000.0, 690000.0, 7461000.0],
       "tile_size_m": 500.0,
       "terrain_grid_m": 2.5,
       "unreal_folder": "Test_Copacabana",
@@ -603,6 +603,7 @@
   "favela_infill": {
     "_doc": "Procedural informal houses in under-mapped favelas (rio_geo/favela.py), before the ground model. Only adds up to `coverage` of each favela polygon (mapped buildings count); keeps every road/beco/stair/path clear. Frontage houses line every street / beco / stair first, then the interior is filled contour-aligned.",
     "enabled": true,
+    "extra_favela_names": ["Babilônia", "Chapéu Mangueira"],
     "coverage": 0.55,
     "sizes": {
       "_doc": "w = along the street (or contour), d = depth; shares sum to 1. 'wide' = merged / bigger houses.",

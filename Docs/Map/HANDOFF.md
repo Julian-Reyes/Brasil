@@ -42,6 +42,9 @@ What changed (details: `MacBookSessionNotes.md` -> Session 5 and Session 6):
   coastal headlands keep their relief; the Forte de Copacabana as a complex (fortress with walkable roof,
   cupolas and guns, colonial museum buildings, wall, lawns, Posto 6 pier). Renders: `screenshots/arpoador_rock.png`,
   `forte_*.png`.
+* Copacabana area extended (Session 14): now to the Leme point, Babilonia / Chapeu Mangueira (now favelas), Praia
+  Vermelha, Morro da Urca and the Pao de Acucar (E690000 / N7461000). 9.2 M triangles. Render:
+  `screenshots/copacabana_leme_urca.png`.
 
 ### Checklist
 
@@ -71,7 +74,8 @@ $P scripts/build_area.py --aoi test_copacabana && $P scripts/build_beach.py --ao
 Expected (Session 12): Leblon-Arpoador `beach life: {'barracas': 72, 'umbrellas': 1923, 'chairs': 2894, 'towels':
 650, 'courts_osm': 2, 'courts_procedural': 18 ...}`, beach centreline `z 1.01..3.28 m`; Copacabana `geometry: 12
 tiles, 5 postos, 47 kiosks, 279 palms`, `beach life: {'barracas': 52, 'umbrellas': 1976, ...}`, `buildings placed:
-4293`. New level for Copacabana: `$P unreal/ue_remote.py unreal/create_test_level.py '{"level":
+11002`, `favela infill: Babilônia: +1578 houses ...; Chapéu Mangueira: +623 houses ...`, `landmark peaks raised to
+surveyed height: Pão de Açúcar +93.1 m`, `wrote 194 meshes, 9.20 M triangles`. New level for Copacabana: `$P unreal/ue_remote.py unreal/create_test_level.py '{"level":
 "/Game/Rio/Maps/L_Rio_Test_Copacabana", "player_start": {"name": "PlayerStart_Copacabana", "location_cm": [192000,
 232000, 300], "yaw": 0}}'`, then `import_area.py '{"aoi": "test_copacabana"}'`.
 

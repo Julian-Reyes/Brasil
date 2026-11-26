@@ -899,3 +899,20 @@ building materials during the favela setup (landmark materials were lost).
 * Pedra do Arpoador: shape and height from Ipanema (sightline in `DesignPriorities.md`), walking up the paths.
 * Forte: fortress height and cupolas vs photos; is the wall in the right places (real ramparts / sea walls);
   colonial buildings' size; the oval service road around the parade ground; pier height.
+
+# Session 14 (2026-11-26, MacBook): Copacabana area extended to Leme point, Babilonia, Urca, Pao de Acucar
+
+`test_copacabana` is now E685000-690000 x N7456000-7461000 (5 x 5 km; was E688500 / N7460000). Renders:
+`screenshots/copacabana_leme_urca.png`, `babilonia_chapeu_mangueira.png`.
+
+* Peaks vs OSM `ele` (model max within 40 m): Pao de Acucar 392.5 / 392 (summit correction +93 m), Morro da Urca
+  219.9 / 220, Morro da Babilonia 238.1 / 238, Morro dos Urubus 124 / 126. **Short** (30 m DEM cuts summits):
+  Morro do Leme 124 / 150, Morro de Sao Joao 206 / 242, Morro da Saudade 192 / 244, Agulha do Inhanga 152 / 164.
+  They could join `landmark_peaks` (needs radii that keep the domes off houses; not done).
+* **Babilonia and Chapeu Mangueira** are favelas but only `landuse=residential` in OSM: new
+  `favela_infill.extra_favela_names` makes them favelas (informal houses, infill, doors, wires). Infill: Babilonia
+  +1578 houses, Chapeu Mangueira +623 (0% -> 55% coverage).
+* Area totals: 11,002 buildings (2,882 informal), 9.20 M triangles in the area tiles (was 4.5 M): the heaviest test
+  level now; watch editor load / frame rate.
+* Still outside: the north slopes of the Pao de Acucar / Morro da Urca (edge 115 m behind the summit), the Urca
+  neighbourhood and Praia da Urca, Botafogo, the Corcovado (N7460682 but W of this area; inside none).
