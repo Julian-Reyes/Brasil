@@ -92,7 +92,7 @@ def main():
     nodes = gpd.read_file(osm / "roads.gpkg", layer="nodes")
     if (osm / "reference.gpkg").exists():
         ref = gpd.read_file(osm / "reference.gpkg", layer="polygons")
-        favelas = ref[ref.get("residential", "").astype(str).eq("favela")
+        favelas = ref[ref.get("residential", "").astype(str).isin(["favela", "irregular_settlement"])
                   | ref["name"].astype(str).isin(CONFIG["favela_infill"].get("extra_favela_names", []))]
     else:
         log("WARNING: no reference.gpkg; all buildings treated as formal (re-run after the reference fetch)")

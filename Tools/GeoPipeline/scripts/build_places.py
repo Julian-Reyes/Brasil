@@ -118,7 +118,7 @@ def main():
         log(f"landmarks not found in this AOI: {missing}")
     marks = plc.markers(elems, feats, terrain, utm_to_ue)
     keep = [m for m in manifest.get("markers", []) if m.get("source") not in ("hub",) and not
-            str(m.get("source", "")).startswith(("osm:vidigal", "osm:buildings", "osm:lagoa/", "osm:beach/", "osm:forte/"))
+            str(m.get("source", "")).startswith(("osm:vidigal", "osm:buildings", "osm:lagoa/", "osm:beach/", "osm:forte/", "osm:centro/"))
             or m.get("kind") == "Posto"]
     manifest["markers"] = keep + marks
 

@@ -934,3 +934,31 @@ Render: `screenshots/morro_do_leme.png`.
 * Morro do Cantagalo (9 m short) skipped: favela houses 16 m from its summit.
 * `test_copacabana`, `test_lagoa`, `test_leblon_arpoador` rebuilt (Agulha do Inhanga is also inside the Leblon
   area's DEM window: `+36.7 m` there too).
+
+# Session 16 (2026-11-26, MacBook): Centro 1:1 measurement area
+
+Branch **`macbook/centro`** (on top of `macbook/beach-life`). New AOI `test_centro`: E684500-689000 x N7463500-7467500
+(Sambodromo to the airport / Ilha Fiscal, Catete / Gloria to Praca Maua / AquaRio). Purpose: real distances and heights
+to compress from (GTA-style plan in `DesignPriorities.md`). Renders: `screenshots/centro_from_bay.png`,
+`centro_praca_maua.png`.
+
+* 24,736 buildings (4,201 informal), 7,720 road edges (161 tunnel edges skipped), 8.13 M triangles.
+* Favelas: `residential=irregular_settlement` now counts as favela everywhere (only Tavares Bastos, in this area);
+  `extra_favela_names` + Morro da Providencia, Ocidental Fallet, Morro Santos Rodrigues, Morro da Coroa, Mineira.
+  Infill: Providencia +1685, Santos Rodrigues +478, Mineira +337, Coroa +215, Fallet +63.
+* New feature set `centro` (whole AOI): 28 icon markers (museum / church / library / market / landmark / airport ...):
+  Museu do Amanha, MAR, AquaRio, Pedra do Sal, Mural das Etnias, Sao Bento, Real Gabinete, Saara, Confeitaria Colombo,
+  Paco Imperial, Arco do Teles, CCBB, Candelaria, Theatro Municipal, Belas Artes, Arcos da Lapa, Escadaria Selaron,
+  Catedral, MAM, Bossa Nova Mall, Aeroporto Santos Dumont, Monumento aos Pracinhas, Marina da Gloria, Outeiro da
+  Gloria, Museu da Republica, Sambodromo.
+* Airport: runways 20L/02R and 20R/02L ~1.26 km (OSM), terrain under them 1.6-2.9 m (a 1.3 m hump: needs flattening
+  for planes).
+
+## Problem: icon heights
+
+Icons **with** an OSM height are right: Theatro Municipal 20.6 m, Catedral 75 m, Real Gabinete 17.1 m, Biblioteca
+Nacional 23.4 m. Most icons have **no** OSM height and got the office-block default (24-40 m boxes, random facade
+colours, roof machine rooms): Museu do Amanha 24.5, MAR 27.5, Paco Imperial 24.5, Candelaria 30.5, CCBB 30.5, Belas
+Artes 33.5, Sao Bento 39.5, Monumento aos Pracinhas 33.5, Outeiro da Gloria 33.5, Ilha Fiscal castle 36.5. The Arcos
+da Lapa are a solid 27.5 m block (should be arches). Arco do Teles has an OSM height of 42.4 m (looks wrong).
+Same issue as the forts' guessed heights (Session 15 follow-up). Next: a landmark registry with sourced dimensions.

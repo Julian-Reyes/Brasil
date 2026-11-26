@@ -37,7 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fetch_osm import flatten_for_gpkg, with_overpass_retry  # noqa: E402
 from rio_geo import osm_pbf  # noqa: E402
 
-KEEP = ["name", "emergency", "shop", "amenity", "natural", "leisure", "man_made", "sport", "species",
+KEEP = ["name", "place", "emergency", "shop", "amenity", "natural", "leisure", "man_made", "sport", "species",
         "genus", "leaf_type", "ref", "operator", "tower:type", "backrest", "denotation",
         "historic", "landuse", "tourism", "barrier", "aeroway", "building", "entrance"]
 

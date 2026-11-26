@@ -49,6 +49,14 @@
       "beach": {"front_roads": ["Avenida Atlântica"], "beach_names": ["Praia de Copacabana", "Praia do Leme"],
                 "feature_set": "copacabana"}
     },
+    "test_centro": {
+      "description": "Centro 1:1 measurement area: Praca Maua / Museu do Amanha / Pedra do Sal, SAARA / Confeitaria Colombo / Real Gabinete, Praca XV, Cinelandia, Lapa / Selaron, Santos Dumont airport, Gloria / Aterro to Catete, Sambodromo. Source for the compressed map (GTA-style, see DesignPriorities.md).",
+      "bbox_utm": [684500.0, 7463500.0, 689000.0, 7467500.0],
+      "tile_size_m": 500.0,
+      "terrain_grid_m": 2.5,
+      "unreal_folder": "Test_Centro",
+      "always_loaded": true
+    },
     "test_lagoa": {
       "description": "Lagoa Rodrigo de Freitas: the lagoon with its islands, the Epitacio Pessoa / Borges de Medeiros ring, Corte do Cantagalo, Jardim de Alah canal, Parque dos Patins, edges of Humaita / Jardim Botanico / Gavea racecourse.",
       "bbox_utm": [682000.0, 7457000.0, 685000.0, 7460000.0],
@@ -224,6 +232,16 @@
         "amenity": ["fast_food", "bar", "cafe", "kiosk", "shower", "toilets", "drinking_water", "lifeguard"],
         "leisure": ["pitch", "fitness_station", "playground"],
         "man_made": ["tower", "lifeguard_tower"]
+      }
+    },
+    "centro": {
+      "_doc": "Centro icons for markers (whole AOI: no anchors).",
+      "anchor_names": [],
+      "pad_m": 0.0,
+      "tags": {
+        "tourism": ["museum", "attraction", "artwork"], "amenity": ["library", "theatre", "marketplace", "cafe", "ferry_terminal"],
+        "historic": ["monument", "castle", "memorial"], "aeroway": ["aerodrome", "terminal", "runway"], "place": ["neighbourhood"],
+        "leisure": ["marina"]
       }
     },
     "forte": {
@@ -577,6 +595,31 @@
       "_doc": "Real places marked for gameplay (name in the AOI's feature sets -> marker kind).",
       "Vila Olímpica Adílio": "sports_complex",
       "Forte de Copacabana": "fort",
+      "Museu do Amanhã": "museum",
+      "Museu de Arte do Rio": "museum",
+      "AquaRio": "museum",
+      "Pedra do Sal": "landmark",
+      "Mural das Etnias": "landmark",
+      "Igreja e Mosteiro de São Bento": "church",
+      "Real Gabinete Português de Leitura": "library",
+      "Saara": "market",
+      "Paço Imperial": "museum",
+      "Arco do Teles": "landmark",
+      "Centro Cultural Banco do Brasil": "museum",
+      "Igreja de Nossa Senhora da Candelária": "church",
+      "Theatro Municipal": "theatre",
+      "Museu Nacional de Belas Artes": "museum",
+      "Arcos da Lapa": "landmark",
+      "Escadaria Selarón": "landmark",
+      "Catedral de São Sebastião": "church",
+      "Museu de Arte Moderna (MAM)": "museum",
+      "Bossa Nova Mall": "mall",
+      "Aeroporto Santos Dumont": "airport",
+      "Monumento Nacional aos Mortos da Segunda Guerra Mundial": "landmark",
+      "Marina da Glória": "marina",
+      "Igreja de Nossa Senhora da Glória do Outeiro": "church",
+      "Museu da República": "museum",
+      "Sambódromo da Marquês de Sapucaí": "landmark",
       "Confeitaria Colombo": "cafe",
       "Cafe 18 do Forte": "cafe",
       "Pedra do Arpoador": "lookout",
@@ -604,7 +647,9 @@
   "favela_infill": {
     "_doc": "Procedural informal houses in under-mapped favelas (rio_geo/favela.py), before the ground model. Only adds up to `coverage` of each favela polygon (mapped buildings count); keeps every road/beco/stair/path clear. Frontage houses line every street / beco / stair first, then the interior is filled contour-aligned.",
     "enabled": true,
-    "extra_favela_names": ["Babilônia", "Chapéu Mangueira"],
+    "extra_favela_names": ["Babilônia", "Chapéu Mangueira", "Morro da Providência", "Ocidental Fallet",
+                           "Morro Santos Rodrigues", "Morro da Coroa", "Mineira"],
+    "_extra_note": "Favelas OSM tags only landuse=residential. residential=irregular_settlement (Tavares Bastos, ...) counts as favela too.",
     "coverage": 0.55,
     "sizes": {
       "_doc": "w = along the street (or contour), d = depth; shares sum to 1. 'wide' = merged / bigger houses.",

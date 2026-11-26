@@ -76,7 +76,7 @@ def main():
     favelas = gpd.GeoDataFrame(geometry=[], crs=PROJECTED_CRS)
     if (osm / "reference.gpkg").exists():
         ref = gpd.read_file(osm / "reference.gpkg", layer="polygons")
-        favelas = ref[ref.get("residential", "").astype(str).eq("favela")
+        favelas = ref[ref.get("residential", "").astype(str).isin(["favela", "irregular_settlement"])
                   | ref["name"].astype(str).isin(CONFIG["favela_infill"].get("extra_favela_names", []))]
     zones = fav.infill_zones(favelas, CONFIG["places"]["hubs"], bbox)
     zone = shapely.union_all([z[1] for z in zones]) if zones else shapely.Polygon()
