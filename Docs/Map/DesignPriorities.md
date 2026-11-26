@@ -95,3 +95,51 @@ learns, natural stages for chases and meetings. Names idealised; routes are real
 2. Keep the sightlines: Leblon / Ipanema towers and the beach from the hub and the top; Dois Irmaos above.
 3. Keep Dois Irmaos at its real height (surveyed 539 m; landmark-summit correction) and the trail to the top.
 4. Compress the realistic outer favela, not the hub.
+
+## City map model: GTA-style compression (decided 2026-11-26)
+
+The compressed map follows the GTA model: **landmarks and districts at real scale and real look, the space
+between them squeezed hard.** Recognisable places are built true to size; repetitive blocks, long avenues and
+connectors are what get cut. Drives between districts feel short (Copacabana to Centro ~2-3 km in game vs ~8 km
+by road in reality), but each district, when you are in it, feels like the real place.
+
+* Districts (keep): Vidigal, Leblon-Ipanema beach (hero area 1), Copacabana-Leme, Lagoa, Botafogo-Urca bay front,
+  Flamengo-Gloria waterfront, Centro (port, Praca XV, SAARA, Cinelandia), Lapa / Santa Teresa edge, the airport.
+* Connectors (compress): Botafogo and Flamengo residential blocks, the length of the Aterro, Centro's office
+  blocks between the landmark clusters, the inland streets behind the beaches (rule 3 of hero area 1).
+* Signature drive kept: Copacabana -> Tunel Novo -> Botafogo bay (Pao de Acucar view) -> Aterro do Flamengo
+  along the water (MAM, Monumento aos Pracinhas, Marina da Gloria) -> airport -> Centro.
+
+## Santos Dumont airport (playable, decided 2026-11-26)
+
+Playable: planes land and take off, terminal walkable. So the runway keeps a usable length (real ~1.3 km;
+shorten only as far as the plane gameplay allows) on its strip in the bay. Bossa Nova Mall (OSM: 7,660 m2,
+2 storeys, E688042 N7464785) stays beside the terminal; MAM (E687457 N7464865) next to it on the Aterro.
+
+## Centro: every iconic place playable (decided 2026-11-26)
+
+Clusters (real OSM positions; they are already compact, so they stay 1:1 inside and only move closer together):
+
+1. **Port / Praca Maua**: Museu do Amanha (OSM 10,352 m2; the roof needs an authored mesh in
+   /Game/Rio/Manual, the pipeline places it at true size), MAR, Praca Maua, Boulevard Olimpico, Mural das Etnias
+   (E686001 N7467015), AquaRio, Mosteiro de Sao Bento on its hill, the VLT tram.
+2. **Pedra do Sal / Morro da Conceicao** (E686117 N7466620): the carved rock steps, the square, the Saude houses;
+   generated like the Vidigal escadarias.
+3. **SAARA street market** (E686409 N7465978): dense pedestrian market streets, stalls and shopfronts spilling
+   into the street (the "swap meet" area), next to
+   **Confeitaria Colombo** (E686797 N7465822, the original, Rua Goncalves Dias) and the
+   **Real Gabinete Portugues de Leitura** (the famous library, E686433 N7465816), Praca Tiradentes.
+4. **Praca XV**: Paco Imperial, Arco do Teles, CCBB, Candelaria, the ferry station (Niteroi), Ilha Fiscal castle
+   seen across the water (E688074 N7466724).
+5. **Cinelandia**: Theatro Municipal, Biblioteca Nacional, Museu Nacional de Belas Artes.
+6. **Lapa**: Arcos da Lapa (+ Santa Teresa tram), Escadaria Selaron (E686664 N7464666), Catedral Metropolitana,
+   Lapa nightlife streets.
+7. Nearby, decide later: Sambodromo (E684963 N7465158, west of Centro).
+
+## Botafogo / Flamengo: what stays on the compressed connector
+
+Botafogo bay front with the Pao de Acucar postcard view and the yacht marina; Botafogo Praia Shopping;
+Mirante Dona Marta and Santa Marta favela (E684933 N7461428); Urca: Mureta da Urca, the Pao de Acucar cable car
+station at Praia Vermelha; General Severiano (Botafogo FR). Flamengo / Gloria: Aterro do Flamengo park and beach,
+Monumento aos Pracinhas, Marina da Gloria, Outeiro da Gloria church, Palacio do Catete (Museu da Republica),
+Largo do Machado.
